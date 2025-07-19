@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var showingDetectionView = false
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 30) {
@@ -24,10 +26,20 @@ struct ContentView: View {
                     .background(Color.blue.opacity(0.1))
                     .cornerRadius(10)
                 
+                Button("Start Cable Detection") {
+                    showingDetectionView = true
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .font(.headline)
+                
                 Spacer()
             }
             .padding()
             .navigationTitle("Welcome")
+        }
+        .fullScreenCover(isPresented: $showingDetectionView) {
+            CableDetectionView()
         }
     }
 }
