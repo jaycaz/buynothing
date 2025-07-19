@@ -6,28 +6,49 @@
 - [x] Configure bundle identifier and basic settings
 - [x] Set up .gitignore and initial commit
 
-## Phase 2: Core Architecture Setup
-- [ ] Create organized folder structure (Models, Views, Services, Utilities)
-- [ ] Set up modular architecture for easy feature expansion
-- [ ] Create essential data models:
-  - [ ] `USBCable` model with port types, speeds, and metadata
-  - [ ] `Item` base model for future expansion
-  - [ ] `User` model for people-centric features
+## Phase 2: Core Architecture Setup ✅
+- [x] Create organized folder structure (Models, Views, Services, Utilities)
+- [x] Set up modular architecture for easy feature expansion
+- [x] Create essential data models:
+  - [x] `USBCable` model with port types, speeds, and metadata
+  - [x] `Item` base model for future expansion
+  - [x] `User` model for people-centric features
 
-## Phase 3: USB Cable Proof of Concept
-### Camera Integration
-- [ ] Implement camera view with AVFoundation
-- [ ] Add Core ML model placeholder for cable detection
-- [ ] Create image capture and processing pipeline
-- [ ] Test camera permissions and functionality
+## Phase 3: USB Cable Proof of Concept (Parallel Development with Git Worktrees)
 
-### Hero Visual Interface
-- [ ] Design borderless hero image components
-- [ ] Implement stunning cable display cards
-- [ ] Create smooth animations and transitions
-- [ ] Implement responsive layout for different screen sizes
+### Track 1: Test Infrastructure (worktree-test-infrastructure)
+- [ ] Set up Swift Testing target in Xcode project
+- [ ] Create test image repository with sample USB cable photos
+- [ ] Establish testing patterns and utilities
+- [ ] Create mock protocols and base test classes
 
-### Voice Integration
+### Track 2: Image Analysis Service (worktree-image-analysis)
+- [ ] Define `ImageAnalysisProtocol` interface
+- [ ] Implement `MockImageAnalysisService` for testing
+- [ ] Create Core ML model integration placeholder
+- [ ] Build cable detection logic with confidence scoring
+- [ ] Write comprehensive Swift Testing test suite
+
+### Track 3: Camera Service (worktree-camera-service)
+- [ ] Define `CameraServiceProtocol` interface
+- [ ] Implement AVFoundation camera integration
+- [ ] Handle camera permissions and errors
+- [ ] Create async/await capture pipeline
+- [ ] Build comprehensive test suite with mocks
+
+### Track 4: UI Components (worktree-ui-components)
+- [ ] Create hero cable display components (`CableCardView`, `CableHeroView`)
+- [ ] Implement borderless image cards with animations
+- [ ] Build responsive layouts for all screen sizes
+- [ ] Create SwiftUI preview testing
+
+### Integration Phase
+- [ ] Merge test infrastructure to main
+- [ ] Integrate image analysis and camera services
+- [ ] Integrate UI components with services
+- [ ] End-to-end testing and polish
+
+### Voice Integration (Future Phase)
 - [ ] Add Speech framework for voice commands
 - [ ] Implement LLM-powered voice processing (OpenAI API integration)
 - [ ] Create voice-to-action mapping for cable selection
