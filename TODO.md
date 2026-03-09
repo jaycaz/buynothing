@@ -1,88 +1,66 @@
-# BuyNothing iOS App Development Todo
+# BuyNothing — Toss & Whisper Prototype
 
-## Phase 1: Project Setup ✅
-- [x] Initialize Git Repository
-- [x] Create Xcode project with SwiftUI
-- [x] Configure bundle identifier and basic settings
-- [x] Set up .gitignore and initial commit
+## Vision
+A communal commons where things flow between neighbors naturally.
+No marketplace, no pricing, no grid. Just toss things in, whisper what you need,
+and let gentle nudges connect the dots.
 
-## Phase 2: Core Architecture Setup ✅
-- [x] Create organized folder structure (Models, Views, Services, Utilities)
-- [x] Set up modular architecture for easy feature expansion
-- [x] Create essential data models:
-  - [x] `USBCable` model with port types, speeds, and metadata
-  - [x] `Item` base model for future expansion
-  - [x] `User` model for people-centric features
+---
 
-## Phase 3: USB Cable Proof of Concept (Parallel Development with Git Worktrees)
+## Phase 1: Toss & Whisper Loop (Current Focus)
 
-### Track 1: Test Infrastructure (worktree-test-infrastructure)
-- [ ] Set up Swift Testing target in Xcode project
-- [ ] Create test image repository with sample USB cable photos
-- [ ] Establish testing patterns and utilities
-- [ ] Create mock protocols and base test classes
+### Data Models
+- [ ] `TossedItem` — photo, AI-generated description, tags, category, date
+- [ ] `Wish` — natural language want, parsed keywords
+- [ ] `Neighbor` — mock person with inventory and wishes
+- [ ] `Nudge` — a match connecting a toss to a wish with a warm message
 
-### Track 2: Image Analysis Service (worktree-image-analysis)
-- [ ] Define `ImageAnalysisProtocol` interface
-- [ ] Implement `MockImageAnalysisService` for testing
-- [ ] Create Core ML model integration placeholder
-- [ ] Build cable detection logic with confidence scoring
-- [ ] Write comprehensive Swift Testing test suite
+### Toss (Camera → AI → Confirm → Done)
+- [ ] Camera capture screen (photo library fallback for simulator)
+- [ ] Send photo to Claude vision API for item identification
+- [ ] Show confirmation card with detected name, description, tags
+- [ ] User confirms or tweaks, item enters the commons
+- [ ] Target: under 10 seconds from camera to listed
 
-### Track 3: Camera Service (worktree-camera-service)
-- [ ] Define `CameraServiceProtocol` interface
-- [ ] Implement AVFoundation camera integration
-- [ ] Handle camera permissions and errors
-- [ ] Create async/await capture pipeline
-- [ ] Build comprehensive test suite with mocks
+### Whisper (Say What You Need)
+- [ ] Simple text input — "I could use a bookshelf"
+- [ ] Store locally as a Wish
+- [ ] No categories, no filters, just natural language
 
-### Track 4: UI Components (worktree-ui-components)
-- [ ] Create hero cable display components (`CableCardView`, `CableHeroView`)
-- [ ] Implement borderless image cards with animations
-- [ ] Build responsive layouts for all screen sizes
-- [ ] Create SwiftUI preview testing
+### Nudge (Gentle Matches)
+- [ ] Match engine: compare user's tosses/wishes against neighbor data
+- [ ] Generate warm, contextual nudge messages (not "1 match found")
+- [ ] Display as a feed of human-readable suggestions
+- [ ] Example: "Priya nearby has a bread maker she's not using. She mentioned wanting yoga gear — you just tossed in a yoga mat."
 
-### Integration Phase
-- [ ] Merge test infrastructure to main
-- [ ] Integrate image analysis and camera services
-- [ ] Integrate UI components with services
-- [ ] End-to-end testing and polish
+### Mock Neighbor Data
+- [ ] Seed 4-5 fictional neighbors with realistic inventories and wants:
+  - Maria: has standing desk lamp, wants kids' books
+  - James: has HDMI/USB cables, wants small kitchen appliances
+  - Priya: has bread maker, wants yoga gear
+  - David: has box of novels, wants electronics cables
+  - Lena: has extra kitchen utensils, wants desk/office stuff
 
-### Voice Integration (Future Phase)
-- [ ] Add Speech framework for voice commands
-- [ ] Implement LLM-powered voice processing (OpenAI API integration)
-- [ ] Create voice-to-action mapping for cable selection
-- [ ] Test speech recognition permissions and functionality
+---
 
-### Cable Management Features
-- [ ] Cable logging and categorization system
-- [ ] Intuitive selection interface
-- [ ] Search and filter capabilities
-- [ ] Cable type detection accuracy improvements
+## Phase 2: Feel & Polish
+- [ ] Organic collage feel for items (background removal, floating objects)
+- [ ] Warm, unhurried visual design — not a marketplace
+- [ ] Nudge timing/cadence experimentation
+- [ ] Toss history — things you've contributed to the commons
 
-## Phase 4: Foundation for Future Features
-### Networking Layer
-- [ ] Prepare modular networking architecture
-- [ ] API client structure for future backend integration
-- [ ] Local data persistence with Core Data
-- [ ] Error handling and retry mechanisms
+---
 
-### Testing & Polish
-- [ ] Unit tests for core models and services
-- [ ] SwiftUI preview implementations for all views
-- [ ] Comprehensive error handling and user feedback
-- [ ] Performance optimization and memory management
+## Phase 3: Real Connections
+- [ ] Replace mock neighbors with real local discovery
+- [ ] On-device matching (privacy-first)
+- [ ] Peer-to-peer item list exchange
+- [ ] Trust signals without accounts
 
-## Next Steps (Future Phases)
-- [ ] Expand to other item types beyond USB cables
-- [ ] Implement auto-generated collages feature
-- [ ] Add social bartering system
-- [ ] Develop people-centric connection features
-- [ ] Build decentralized or volunteer-funded backend
+---
 
-## Current Focus
-**Starting with USB Cable Detection Proof of Concept**
-- Priority: Core ML camera recognition
-- Goal: Detect USB-A, USB-C, Lightning, Micro-USB automatically
-- UI: Beautiful borderless hero images
-- UX: Voice commands for hands-free interaction
+## Open Questions
+- What does the nudge notification actually look like? Toast? Card? Ambient?
+- How casual should the whisper input be? Voice too?
+- Does the commons need a "browse" view at all, or is it purely nudge-driven?
+- Karma/balance tracking — visible to the user or invisible?
