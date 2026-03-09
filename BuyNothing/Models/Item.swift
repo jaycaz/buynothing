@@ -2,7 +2,6 @@ import Foundation
 
 enum ItemCategory: String, CaseIterable, Codable {
     case electronics = "Electronics"
-    case cables = "Cables"
     case furniture = "Furniture"
     case clothing = "Clothing"
     case books = "Books"
@@ -10,12 +9,12 @@ enum ItemCategory: String, CaseIterable, Codable {
     case tools = "Tools"
     case toys = "Toys"
     case sports = "Sports"
+    case office = "Office"
     case other = "Other"
-    
+
     var systemImageName: String {
         switch self {
         case .electronics: return "iphone"
-        case .cables: return "cable.connector"
         case .furniture: return "chair"
         case .clothing: return "tshirt"
         case .books: return "book"
@@ -23,6 +22,7 @@ enum ItemCategory: String, CaseIterable, Codable {
         case .tools: return "wrench"
         case .toys: return "gamecontroller"
         case .sports: return "sportscourt"
+        case .office: return "desktopcomputer"
         case .other: return "questionmark.circle"
         }
     }
@@ -34,62 +34,59 @@ enum ItemCondition: String, CaseIterable, Codable {
     case good = "Good"
     case fair = "Fair"
     case poor = "Poor"
-    
-    var colorName: String {
-        switch self {
-        case .new, .likeNew: return "green"
-        case .good: return "blue"
-        case .fair: return "orange"
-        case .poor: return "red"
-        }
+}
+
+struct TossedItem: Identifiable, Codable {
+    let id: UUID
+    var photoData: Data?
+    var title: String
+    var description: String
+    var tags: [String]
+    var category: ItemCategory
+    var condition: ItemCondition
+    let dateAdded: Date
+    var isAvailable: Bool
+    var ownerID: UUID
+
+    init(
+        id: UUID = UUID(),
+        photoData: Data? = nil,
+        title: String,
+        description: String = "",
+        tags: [String] = [],
+        category: ItemCategory = .other,
+        condition: ItemCondition = .good,
+        ownerID: UUID
+    ) {
+        self.id = id
+        self.photoData = photoData
+        self.title = title
+        self.description = description
+        self.tags = tags
+        self.category = category
+        self.condition = condition
+        self.dateAdded = Date()
+        self.isAvailable = true
+        self.ownerID = ownerID
     }
 }
 
-protocol Item: Identifiable, Codable {
-    var id: UUID { get }
-    var title: String { get set }
-    var description: String { get set }
-    var category: ItemCategory { get set }
-    var condition: ItemCondition { get set }
-    var imageData: Data? { get set }
-    var dateAdded: Date { get }
-    var isAvailable: Bool { get set }
-    var ownerID: UUID? { get set }
-    var location: String? { get set }
-    var tags: [String] { get set }
-}
-
-struct GenericItem: Item {
-    let id = UUID()
-    var title: String
-    var description: String
-    var category: ItemCategory
-    var condition: ItemCondition
-    var imageData: Data?
+struct Wish: Identifiable, Codable {
+    let id: UUID
+    var text: String
+    var keywords: [String]
     let dateAdded: Date
-    var isAvailable: Bool
-    var ownerID: UUID?
-    var location: String?
-    var tags: [String]
-    
+    var isFulfilled: Bool
+
     init(
-        title: String,
-        description: String = "",
-        category: ItemCategory = .other,
-        condition: ItemCondition = .good,
-        imageData: Data? = nil,
-        location: String? = nil,
-        tags: [String] = []
+        id: UUID = UUID(),
+        text: String,
+        keywords: [String] = []
     ) {
-        self.title = title
-        self.description = description
-        self.category = category
-        self.condition = condition
-        self.imageData = imageData
+        self.id = id
+        self.text = text
+        self.keywords = keywords
         self.dateAdded = Date()
-        self.isAvailable = true
-        self.ownerID = nil
-        self.location = location
-        self.tags = tags
+        self.isFulfilled = false
     }
 }

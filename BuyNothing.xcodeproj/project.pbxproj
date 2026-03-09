@@ -11,6 +11,10 @@
 		B40001021A000001001A0001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40001011A000001001A0001 /* ContentView.swift */; };
 		B40001041A000001001A0001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B40001031A000001001A0001 /* Assets.xcassets */; };
 		B40001071A000001001A0001 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B40001061A000001001A0001 /* Preview Assets.xcassets */; };
+		BB0002001A000001001A0001 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0001001A000001001A0001 /* Item.swift */; };
+		BB0004001A000001001A0001 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0003001A000001001A0001 /* User.swift */; };
+		BB0006001A000001001A0001 /* Nudge.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0005001A000001001A0001 /* Nudge.swift */; };
+		BB0008001A000001001A0001 /* MockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0007001A000001001A0001 /* MockData.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,6 +23,10 @@
 		B40001011A000001001A0001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B40001031A000001001A0001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B40001061A000001001A0001 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		BB0001001A000001001A0001 /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
+		BB0003001A000001001A0001 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
+		BB0005001A000001001A0001 /* Nudge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Nudge.swift; sourceTree = "<group>"; };
+		BB0007001A000001001A0001 /* MockData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockData.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -53,6 +61,7 @@
 			children = (
 				B40000FF1A000001001A0001 /* BuyNothingApp.swift */,
 				B40001011A000001001A0001 /* ContentView.swift */,
+				BB000A001A000001001A0001 /* Models */,
 				B40001031A000001001A0001 /* Assets.xcassets */,
 				B40001051A000001001A0001 /* Preview Content */,
 			);
@@ -65,6 +74,17 @@
 				B40001061A000001001A0001 /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		BB000A001A000001001A0001 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				BB0001001A000001001A0001 /* Item.swift */,
+				BB0003001A000001001A0001 /* User.swift */,
+				BB0005001A000001001A0001 /* Nudge.swift */,
+				BB0007001A000001001A0001 /* MockData.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -139,6 +159,10 @@
 			files = (
 				B40001021A000001001A0001 /* ContentView.swift in Sources */,
 				B40001001A000001001A0001 /* BuyNothingApp.swift in Sources */,
+				BB0002001A000001001A0001 /* Item.swift in Sources */,
+				BB0004001A000001001A0001 /* User.swift in Sources */,
+				BB0006001A000001001A0001 /* Nudge.swift in Sources */,
+				BB0008001A000001001A0001 /* MockData.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
