@@ -1,42 +1,35 @@
-# BuyNothing iOS App Development Goal
+# BuyNothing — Project Goal
 
-You are an expert iOS developer and UX designer specializing in community-driven marketplace apps. Create a comprehensive Xcode iOS app development plan and initial implementation for "BuyNothing" - a beautiful, people-first sharing platform.
+## What This Is
+An open source, distributed, AI-assisted commons for sharing and bartering.
+Inspired by "buy nothing" communities — local, human, low-friction.
+Not a marketplace. More like a communal closet that extends across your neighborhood.
 
-**Core Vision:**
-Build the most beautiful and intuitive BuyNothing experience possible, emphasizing human connection over transactions.
+## The Feeling
+Things you own can easily flow into a shared tapestry of collective ownership.
+All the friction of letting things come and go is gone. No pricing, no haggling,
+no payment systems. Satisfaction of decluttering, warmth of community generosity,
+practical cost savings. A zen sense that it all balances out over time.
 
-**Key Features to Implement:**
-1. **Visual-First Discovery:** Auto-generated collages of available items as the primary interface
-2. **Effortless Item Addition:** Camera-based item recognition with one-tap confirmation (no manual entry)
-3. **Social Bartering System:** Enable negotiations and exchanges before any transactions
-4. **People-Centric Design:** Prioritize community connections and user relationships
-5. **Zero-Cost Model:** Either volunteer-funded web services OR decentralized peer-to-peer data hosting via phones
+## Core Experience: Toss & Whisper
+1. **Toss** — point your camera at something, the app knows what it is, confirm, it's in the commons. Like dropping something into a basket.
+2. **Whisper** — say what you need in plain language. The app quietly holds onto it.
+3. **Nudge** — gentle suggestions connecting people. "Your neighbor has the bookshelf you mentioned. They could use kitchen stuff — you've got some to share."
 
-**Proof of Concept - USB Cable Manager:**
-Start with a focused prototype for logging and selecting USB cables with maximum intuitiveness:
-- **Smart Detection:** Use camera ML to automatically identify cable types (USB-A, USB-C, Lightning, Micro-USB, etc.)
-- **Hero Visual Design:** Display cables in stunning, borderless hero images
-- **Voice Integration:** Implement LLM-powered voice commands for hands-free cable selection
-- **Intuitive Categorization:** Organize by port types, speeds, and compatibility
+## Design Principles
+- **No grid, no marketplace feel.** Browsing is passive; things find their way to you. No scrollable product listings — items appear through nudges, not search.
+- **Near-zero friction listing.** Camera → confirm → done. Under 10 seconds.
+- **Warm, not transactional.** Nudges feel like a friend mentioning something, not a notification.
+- **Privacy-first.** Matching intelligence lives on-device. No central server storing your stuff.
+- **No payments.** Bartering and gifting only. Value roughly balances over time like a potluck.
+- **Commons over trades.** Not strict 1:1 bartering — more like a potluck where everyone contributes and receives. As long as values are in the ballpark, the accounting is pointless.
+- **Organic visual feel.** Background-removed objects floating in collage, not product photography. Items feel untethered from individual ownership.
 
-**Development Philosophy:**
-**Prototyping-First Process:** Embrace rapid iteration and experimentation. Build quick, testable prototypes to validate ideas before committing to full implementations. Prioritize learning and user feedback over perfect code in early stages.
+## Current Prototype
+SwiftUI iOS app. Claude vision API for item identification. Mock neighbor data for simulating the nudge loop. Proving out the core Toss & Whisper interaction.
 
-**Technical Requirements:**
-- Native iOS Swift/SwiftUI development
-- Core ML for camera-based object recognition
-- Speech framework for voice input
-- Clean, modern UI following iOS design guidelines
-- Modular architecture for easy feature expansion
-- Rapid prototyping capabilities with SwiftUI Previews
-- Flexible data models that can evolve with user testing
-
-**Deliverables:**
-1. Complete Xcode project structure
-2. Camera recognition system for USB cables
-3. Voice command processing with LLM integration
-4. Beautiful, responsive UI components
-5. Data models for items and user interactions
-6. Basic networking layer (prepared for either centralized or P2P architecture)
-
-Create production-ready code with detailed comments, proper error handling, and scalable architecture. Focus on the USB cable proof of concept while building foundations for the full BuyNothing vision.
+## Technical Stack
+- Native iOS, Swift/SwiftUI
+- Claude API (vision) for item identification
+- Local persistence (SwiftData or simple JSON)
+- Modular architecture for future P2P/distributed expansion
