@@ -22,7 +22,6 @@
 		DB566D337C6F23DA9026D2DC /* ObjectOrientationAligner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CBF6B66D92F68F09C867D85 /* ObjectOrientationAligner.swift */; };
 		906DA5E327318E66840EACFC /* ImageGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB88E5A21C990226C4367841 /* ImageGeometry.swift */; };
 		0EB905523B087433ECEF6D4A /* CollageJustifiedPacker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80D34236CBEAF5D27F230E8 /* CollageJustifiedPacker.swift */; };
-		A1D8B7248896C2078FE16389 /* DebugBackgroundSubtractionSegmenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D6F13FE6EA8EAA007D172DA /* DebugBackgroundSubtractionSegmenter.swift */; };
 		F459682324421EC473376370 /* DebugGroundTruthSegmenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFE3F4F9C44D7E40CC7E4993 /* DebugGroundTruthSegmenter.swift */; };
 /* End PBXBuildFile section */
 
@@ -43,7 +42,6 @@
 		5CBF6B66D92F68F09C867D85 /* ObjectOrientationAligner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectOrientationAligner.swift; sourceTree = "<group>"; };
 		DB88E5A21C990226C4367841 /* ImageGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageGeometry.swift; sourceTree = "<group>"; };
 		D80D34236CBEAF5D27F230E8 /* CollageJustifiedPacker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollageJustifiedPacker.swift; sourceTree = "<group>"; };
-		2D6F13FE6EA8EAA007D172DA /* DebugBackgroundSubtractionSegmenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugBackgroundSubtractionSegmenter.swift; sourceTree = "<group>"; };
 		CFE3F4F9C44D7E40CC7E4993 /* DebugGroundTruthSegmenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugGroundTruthSegmenter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -116,7 +114,6 @@
 				5CBF6B66D92F68F09C867D85 /* ObjectOrientationAligner.swift */,
 				DB88E5A21C990226C4367841 /* ImageGeometry.swift */,
 				D80D34236CBEAF5D27F230E8 /* CollageJustifiedPacker.swift */,
-				2D6F13FE6EA8EAA007D172DA /* DebugBackgroundSubtractionSegmenter.swift */,
 				CFE3F4F9C44D7E40CC7E4993 /* DebugGroundTruthSegmenter.swift */,
 			);
 			path = Utilities;
@@ -205,7 +202,6 @@
 				DB566D337C6F23DA9026D2DC /* ObjectOrientationAligner.swift in Sources */,
 				906DA5E327318E66840EACFC /* ImageGeometry.swift in Sources */,
 				0EB905523B087433ECEF6D4A /* CollageJustifiedPacker.swift in Sources */,
-				A1D8B7248896C2078FE16389 /* DebugBackgroundSubtractionSegmenter.swift in Sources */,
 				F459682324421EC473376370 /* DebugGroundTruthSegmenter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

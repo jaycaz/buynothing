@@ -34,36 +34,30 @@ enum ObjectOrientationAligner {
         let width = maskImage.width
         let height = maskImage.height
 
+        // Single-pass raw moments; central moments (needed for the covariance matrix) are
+        // derived from these afterward instead of re-scanning the image a second time.
         var weightSum = 0.0
-        var sumX = 0.0
-        var sumY = 0.0
+        var sumX = 0.0, sumY = 0.0
+        var sumXX = 0.0, sumYY = 0.0, sumXY = 0.0
         for y in 0..<height {
             let rowOffset = y * width
             for x in 0..<width {
                 let w = Double(bytes[rowOffset + x]) / 255.0
                 guard w > 0 else { continue }
+                let dx = Double(x), dy = Double(y)
                 weightSum += w
-                sumX += w * Double(x)
-                sumY += w * Double(y)
+                sumX += w * dx
+                sumY += w * dy
+                sumXX += w * dx * dx
+                sumYY += w * dy * dy
+                sumXY += w * dx * dy
             }
         }
         guard weightSum > 0 else { return 0 }
-        let meanX = sumX / weightSum
-        let meanY = sumY / weightSum
 
-        var ixx = 0.0, iyy = 0.0, ixy = 0.0
-        for y in 0..<height {
-            let rowOffset = y * width
-            for x in 0..<width {
-                let w = Double(bytes[rowOffset + x]) / 255.0
-                guard w > 0 else { continue }
-                let dx = Double(x) - meanX
-                let dy = Double(y) - meanY
-                ixx += w * dx * dx
-                iyy += w * dy * dy
-                ixy += w * dx * dy
-            }
-        }
+        let ixx = sumXX - sumX * sumX / weightSum
+        let iyy = sumYY - sumY * sumY / weightSum
+        let ixy = sumXY - sumX * sumY / weightSum
 
         // Angle of the dominant eigenvector of the 2x2 covariance matrix [[ixx, ixy], [ixy, iyy]].
         let angle = 0.5 * atan2(2 * ixy, ixx - iyy)

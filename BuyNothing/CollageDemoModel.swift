@@ -56,7 +56,6 @@ final class CollageDemoModel: ObservableObject {
     nonisolated static func runPipeline(
         count: Int,
         seedBase: Int,
-        segmenter: (@Sendable (CGImage) throws -> ForegroundSegmenter.Cutout)? = nil,
         useGroundTruthMask: Bool = false,
         onStage: (@Sendable (PipelineResult) -> Void)? = nil
     ) async -> PipelineOutput {
@@ -73,7 +72,7 @@ final class CollageDemoModel: ObservableObject {
             do {
                 let cutout = useGroundTruthMask
                     ? try DebugGroundTruthSegmenter.cutout(for: photo)
-                    : try (segmenter ?? ForegroundSegmenter.cutoutForegroundObject)(photo.cgImage)
+                    : try ForegroundSegmenter.cutoutForegroundObject(from: photo.cgImage)
                 let aligned = ObjectOrientationAligner.align(cutout)
                 alignedImages.append(aligned)
                 result = PipelineResult(original: photo.cgImage, mask: cutout.alphaMask, aligned: aligned, error: nil)

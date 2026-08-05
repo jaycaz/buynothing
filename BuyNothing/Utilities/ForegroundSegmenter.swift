@@ -35,25 +35,33 @@ enum ForegroundSegmenter {
             from: handler
         )
 
-        let ciContext = CIContext()
-        let maskCIImage = CIImage(cvPixelBuffer: maskPixelBuffer)
-        let originalCIImage = CIImage(cgImage: cgImage)
+        guard let maskCGImage = CIContext().createCGImage(CIImage(cvPixelBuffer: maskPixelBuffer), from: CIImage(cgImage: cgImage).extent) else {
+            throw SegmentationError.maskRenderingFailed
+        }
 
-        // Composite: keep original color where the mask says "object", transparent elsewhere.
+        let compositedCGImage = try compositeMasked(image: cgImage, mask: maskCGImage)
+        return try tightCutout(image: compositedCGImage, mask: maskCGImage)
+    }
+
+    /// Composites `image` onto a transparent background using `mask` as alpha, keeping only the
+    /// foreground object. Shared by the real Vision segmenter and the DEBUG-only ground-truth one.
+    static func compositeMasked(image: CGImage, mask: CGImage) throws -> CGImage {
+        let ciContext = CIContext()
+        let imageCI = CIImage(cgImage: image)
+        let maskCI = CIImage(cgImage: mask)
+
         guard let blend = CIFilter(name: "CIBlendWithMask") else {
             throw SegmentationError.maskRenderingFailed
         }
-        blend.setValue(originalCIImage, forKey: kCIInputImageKey)
-        blend.setValue(maskCIImage, forKey: kCIInputMaskImageKey)
-        blend.setValue(CIImage(color: .clear).cropped(to: originalCIImage.extent), forKey: kCIInputBackgroundImageKey)
+        blend.setValue(imageCI, forKey: kCIInputImageKey)
+        blend.setValue(maskCI, forKey: kCIInputMaskImageKey)
+        blend.setValue(CIImage(color: .clear).cropped(to: imageCI.extent), forKey: kCIInputBackgroundImageKey)
 
         guard let composited = blend.value(forKey: kCIOutputImageKey) as? CIImage,
-              let maskCGImage = ciContext.createCGImage(maskCIImage, from: originalCIImage.extent),
-              let compositedCGImage = ciContext.createCGImage(composited, from: originalCIImage.extent) else {
+              let compositedCGImage = ciContext.createCGImage(composited, from: imageCI.extent) else {
             throw SegmentationError.maskRenderingFailed
         }
-
-        return try tightCutout(image: compositedCGImage, mask: maskCGImage)
+        return compositedCGImage
     }
 
     /// Crops both `image` and `mask` (which must share dimensions) to the tight bounding box

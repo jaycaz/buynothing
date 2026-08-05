@@ -26,23 +26,17 @@ enum CollageDebugDump {
         let directoryURL = URL(fileURLWithPath: dumpDir)
         try? FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
 
-        let useFallback = ProcessInfo.processInfo.environment["COLLAGE_USE_FALLBACK_SEGMENTER"] == "1"
         let useGroundTruth = ProcessInfo.processInfo.environment["COLLAGE_USE_GROUND_TRUTH_MASK"] == "1"
 
         Task.detached(priority: .userInitiated) {
-            await dumpPipeline(to: directoryURL, useFallback: useFallback, useGroundTruth: useGroundTruth)
+            await dumpPipeline(to: directoryURL, useGroundTruth: useGroundTruth)
         }
     }
 
-    private static func dumpPipeline(to directoryURL: URL, useFallback: Bool, useGroundTruth: Bool) async {
-        var segmenter: (@Sendable (CGImage) throws -> ForegroundSegmenter.Cutout)?
-        if useFallback {
-            segmenter = { try DebugBackgroundSubtractionSegmenter.cutoutForegroundObject(from: $0) }
-        }
+    private static func dumpPipeline(to directoryURL: URL, useGroundTruth: Bool) async {
         let output = await CollageDemoModel.runPipeline(
             count: 6,
             seedBase: 0,
-            segmenter: segmenter,
             useGroundTruthMask: useGroundTruth
         )
 
