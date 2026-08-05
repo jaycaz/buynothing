@@ -3,17 +3,34 @@ import SwiftUI
 struct ContentView: View {
     let neighbors = MockData.neighbors
     let nudges = MockData.sampleNudges
+    #if DEBUG
+    @State private var showingCollageDemo = false
+    #endif
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 // Header
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("BuyNothing")
-                        .font(.largeTitle.bold())
-                    Text("Your neighborhood commons")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("BuyNothing")
+                            .font(.largeTitle.bold())
+                        Text("Your neighborhood commons")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    #if DEBUG
+                    Button {
+                        showingCollageDemo = true
+                    } label: {
+                        Image(systemName: "square.grid.2x2")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 4)
+                    .accessibilityLabel("Collage prototype")
+                    #endif
                 }
                 .padding(.horizontal)
                 .padding(.top, 20)
@@ -43,6 +60,11 @@ struct ContentView: View {
             }
         }
         .background(Color(.systemGroupedBackground))
+        #if DEBUG
+        .sheet(isPresented: $showingCollageDemo) {
+            CollageDemoView()
+        }
+        #endif
     }
 }
 
