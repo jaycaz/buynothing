@@ -101,3 +101,6 @@ iOSInjectionProject/
 # IDE
 .vscode/
 .idea/
+# Secrets (prototype API keys)
+BuyNothing/Config/Secrets.swift
+BuyNothing/Config/Secrets.example.swift
