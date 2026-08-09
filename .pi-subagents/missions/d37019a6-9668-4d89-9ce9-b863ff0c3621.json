@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "d37019a6-9668-4d89-9ce9-b863ff0c3621",
+  "title": "Implement the ObjectOrientationAligner guard for blobby objects. Add the eigenvalue ratio calcula...",
+  "objective": "Implement the ObjectOrientationAligner guard for blobby objects. Add the eigenvalue ratio calculation and threshold check to skip rotation for low-elongation objects. Use the existing covariance terms (ixx/iyy/ixy) and compute eigenvalues in closed form. Default threshold ~1.8.",
+  "status": "completed",
+  "createdAt": "2026-08-09T02:56:55.419Z",
+  "updatedAt": "2026-08-09T02:56:55.668Z",
+  "runs": [
+    {
+      "runId": "91ec9af6-c119-4b1f-80da-77eb0fe19de0",
+      "mode": "workflow",
+      "asyncDir": "/var/folders/4n/xwgx72f177956w6tx4xm8xwc0000gn/T/pi-subagents-uid-501/async-subagent-runs/91ec9af6-c119-4b1f-80da-77eb0fe19de0",
+      "status": "complete",
+      "startedAt": "2026-08-09T02:56:55.423Z",
+      "completedAt": "2026-08-09T02:56:55.668Z"
+    }
+  ],
+  "decisions": [],
+  "artifacts": [
+    {
+      "kind": "status",
+      "path": "/var/folders/4n/xwgx72f177956w6tx4xm8xwc0000gn/T/pi-subagents-uid-501/async-subagent-runs/91ec9af6-c119-4b1f-80da-77eb0fe19de0/status.json"
+    },
+    {
+      "kind": "other",
+      "path": "/var/folders/4n/xwgx72f177956w6tx4xm8xwc0000gn/T/pi-subagents-uid-501/async-subagent-runs/91ec9af6-c119-4b1f-80da-77eb0fe19de0/events.jsonl",
+      "description": "Lifecycle events"
+    }
+  ],
+  "receipts": [],
+  "cwd": "/Users/jordan/.local/share/pi-worktrees/20260809025249/experimental-camera-snap-proto-worktree-20260809",
+  "ownerSessionId": "/Users/jordan/.pi/agent/sessions/--Users-jordan-.local-share-pi-worktrees-20260809025249-experimental-camera-snap-proto-worktree-20260809--/2026-08-09T02-52-49-596Z_019fe46f-f23b-73ff-87d7-62e8e27b0722.jsonl",
+  "summary": "Workflow completed with 5 child run(s). Return: null Trace: 10 event(s)."
+}
