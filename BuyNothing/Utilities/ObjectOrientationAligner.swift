@@ -33,6 +33,50 @@ enum ObjectOrientationAligner {
         return cropped
     }
 
+    /// Eigenvalue ratio for the object's covariance matrix.
+    /// Returns λ1/λ2 where λ1 ≥ λ2, computed directly from the second-order moments
+    /// without re-scanning the image. Ratio near 1 means blobby/circular; higher values
+    /// indicate elongated shapes.
+    private static func principalElongationRatio(ofMask maskImage: CGImage) -> Double {
+        guard let bytes = ImageGeometry.topDownGrayscaleBytes(from: maskImage) else { return 0.0 }
+        let width = maskImage.width
+        let height = maskImage.height
+
+        var weightSum = 0.0
+        var sumX = 0.0, sumY = 0.0
+        var sumXX = 0.0, sumYY = 0.0, sumXY = 0.0
+        for y in 0..<height {
+            let rowOffset = y * width
+            for x in 0..<width {
+                let w = Double(bytes[rowOffset + x]) / 255.0
+                guard w > 0 else { continue }
+                let dx = Double(x), dy = Double(y)
+                weightSum += w
+                sumX += w * dx
+                sumY += w * dy
+                sumXX += w * dx * dx
+                sumYY += w * dy * dy
+                sumXY += w * dx * dy
+            }
+        }
+        guard weightSum > 0 else { return 0.0 }
+
+        let ixx = sumXX - sumX * sumX / weightSum
+        let iyy = sumYY - sumY * sumY / weightSum
+        let ixy = sumXY - sumX * sumY / weightSum
+
+        // Eigenvalues from the 2×2 covariance matrix:
+        // λ = (trace ± sqrt(trace² - 4·det)) / 2
+        // where trace = ixx + iyy, det = ixx·iyy - ixy²
+        // Closed form equivalent: λ = ((ixx+iyy) ± sqrt((ixx-iyy)² + 4·ixy²)) / 2
+        let trace = ixx + iyy
+        let discriminant = sqrt(pow(ixx - iyy, 2) + 4 * pow(ixy, 2))
+        let lambda1 = (trace + discriminant) / 2.0
+        let lambda2 = (trace - discriminant) / 2.0
+        
+        return lambda1 / lambda2
+    }
+
     /// Angle (radians, UIKit y-down convention) of the mask's dominant eigenvector, i.e. the
     /// long axis of the object, computed from the mask's second-order pixel moments (PCA).
     private static func principalAxisAngle(ofMask maskImage: CGImage) -> CGFloat {
