@@ -96,20 +96,20 @@ enum ItemIdentifier {
             throw ItemIdentifierError.requestSerializationFailed
         }
 
-        let url = URL(string: CLAUDE_API_URL)
+        let url = URL(string: Secrets.claudeAPIURL)
         guard let url = url else {
             throw ItemIdentifierError.invalidAPIURL
         }
 
         let headers = [
-            "Authorization": "Bearer \(apiKey)",
+            "Authorization": "Bearer \(Secrets.claudeAPIKey)",
             "Content-Type": "application/json"
         ]
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(apiKey, forHTTPHeaderField: "Authorization")
+        request.setValue(Secrets.claudeAPIKey, forHTTPHeaderField: "Authorization")
         request.httpBody = bodyJSON
 
         do {

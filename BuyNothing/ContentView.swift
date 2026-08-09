@@ -5,6 +5,7 @@ struct ContentView: View {
     let nudges = MockData.sampleNudges
     #if DEBUG
     @State private var showingCollageDemo = false
+    @State private var showingSnapshot = false
     #endif
 
     var body: some View {
@@ -22,14 +23,14 @@ struct ContentView: View {
                     Spacer()
                     #if DEBUG
                     Button {
-                        showingCollageDemo = true
+                        showingSnapshot = true
                     } label: {
-                        Image(systemName: "square.grid.2x2")
+                        Image(systemName: "square.and.arrow.up")
                             .font(.title3)
                             .foregroundStyle(.secondary)
                     }
                     .padding(.top, 4)
-                    .accessibilityLabel("Collage prototype")
+                    .accessibilityLabel("One-shot collage prototype")
                     #endif
                 }
                 .padding(.horizontal)
@@ -63,6 +64,9 @@ struct ContentView: View {
         #if DEBUG
         .sheet(isPresented: $showingCollageDemo) {
             CollageDemoView()
+        }
+        .sheet(isPresented: $showingSnapshot) {
+            SnapshotCollageView()
         }
         #endif
     }

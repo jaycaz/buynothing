@@ -1,5 +1,7 @@
 import Foundation
 import CoreGraphics
+import Vision
+import CoreML
 
 /// "Perspective correction" for flat-lay objects photographed from directly above/in front:
 /// there's no real 3D perspective to undo, but every object still comes in at an arbitrary
@@ -10,15 +12,20 @@ enum ObjectOrientationAligner {
 
     /// Rotates `cutout` so its principal (longest) axis is vertical, then flips it if needed
     /// so the heavier/wider end (e.g. a screwdriver's handle) sits at the bottom, and tight-crops.
+    /// Rotates `cutout` so its principal (longest) axis is vertical, then flips it if needed
+    /// so the heavier/wider end (e.g. a screwdriver's handle) sits at the bottom, and tight-crops.
     static func align(_ cutout: ForegroundSegmenter.Cutout) -> CGImage {
-        let angle = principalAxisAngle(ofMask: cutout.alphaMask)
-
-        // Guard: skip rotation for blobby objects (circular/blob-shaped items like mugs, bottles)
+        // First, compute the elongation ratio to decide if rotation is worthwhile
         let eigenvalueRatio = principalElongationRatio(ofMask: cutout.alphaMask)
+        
+        // Guard: skip rotation for blobby objects (circular/blob-shaped items like mugs, bottles)
         guard eigenvalueRatio > 1.8 else {
             return ImageGeometry.tightCropAlpha(cutout.image) ?? cutout.image
         }
 
+        // Only for elongated objects: compute the principal axis angle
+        let angle = principalAxisAngle(ofMask: cutout.alphaMask)
+        
         // Rotate so the axis points straight up (target angle = -pi/2 in UIKit's y-down
         // convention, since that's "up" on screen). The axis has a 180-degree ambiguity
         // (an eigenvector and its negation are the same axis) — resolved below.
@@ -32,8 +39,6 @@ enum ObjectOrientationAligner {
         }
         return cropped
     }
-
-    /// Eigenvalue ratio for the object's covariance matrix.
     /// Returns λ1/λ2 where λ1 ≥ λ2, computed directly from the second-order moments
     /// without re-scanning the image. Ratio near 1 means blobby/circular; higher values
     /// indicate elongated shapes.
@@ -162,6 +167,20 @@ enum ObjectOrientationAligner {
 
         // Return ratio of larger to smaller eigenvalue
         return lambda1 >= lambda2 ? lambda1 / lambda2 : 1.0
+    }
+
+    // Inline sqrt since Math is not available
+    private static func sqrt(_ value: Double) -> Double {
+        guard value >= 0 else { return 0 }
+        var x = value
+        var y = x / 2
+        var n = 0
+        while y < x && n < 100 {
+            x = y
+            y = (x + value / x) / 2
+            n += 1
+        }
+        return y
     }
 
     /// After vertical alignment, decides whether the object needs a 180-degree flip so its
