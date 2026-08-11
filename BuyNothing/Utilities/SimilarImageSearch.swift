@@ -8,6 +8,7 @@
 //
 
 import Foundation
+import UIKit
 
 /// Returns up to `count` CGImages of items visually similar to the given query text.
 ///
@@ -18,54 +19,40 @@ enum SimilarImageSearch {
 
     /// Fetch up to `count` similar images for the given text query.
     static func fetch(query: String, count: Int = 10) async throws -> [CGImage] {
-        guard let key = Secrets.googleSearchKey,
-              let engine = Secrets.googleSearchEngineID,
-              !key.isEmpty,
-              !engine.isEmpty else {
+        let key = Secrets.googleSearchKey
+        let engine = Secrets.googleSearchEngineID
+        guard !key.isEmpty, key != "your-google-search-api-key-here",
+              !engine.isEmpty, engine != "your-google-customsearch-engine-id-here" else {
             throw SimilarImageSearchError.missingAPIKey
         }
 
-        let url = URL(string: "https://www.googleapis.com/customsearch/v2")!
+        // Build query string manually to avoid JSON encoding issues
+        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        let urlString = "https://www.googleapis.com/customsearch/v1?key=\(key)&cx=\(engine)&q=\(encodedQuery)&searchType=image&num=\(min(count, 10))&safe=active"
 
-        let params: [String: Any] = [
-            "key": key,
-            "cx": engine,
-            "q": query,
-            "searchType": "image",
-            "num": min(count, 10),  // Google has a 10-image limit per query
-            "safe": "active"
-        ]
-
-        guard let queryParam = try? JSONSerialization.data(withJSONObject: params),
-              let queryString = String(data: queryParam, encoding: .utf8) else {
+        guard let url = URL(string: urlString) else {
             throw SimilarImageSearchError.requestSerializationFailed
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.setValue("UTF-8", forHTTPHeaderField: "Accept-Charset")
-        request.httpBody = queryString as NSData?
-
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(from: url)
 
         guard let httpResponse = response as? HTTPURLResponse,
-              (200...204).contains(httpResponse.statusCode) else {
-            throw SimilarImageSearchError.httpError(code: httpResponse.statusCode, body: String(data: data, encoding: .utf8))
+              (200...299).contains(httpResponse.statusCode) else {
+            throw SimilarImageSearchError.httpError(code: (response as? HTTPURLResponse)?.statusCode ?? 0, body: String(data: data, encoding: .utf8))
         }
 
-        guard let json = try JSONSerialization.jsonObject(with: data),
-              let itemsArray = json["items"] as? [[String: Any]],
-              let items = itemsArray as? [SimilarImageSearch.Hit] else {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let itemsArray = json["items"] as? [[String: Any]] else {
             throw SimilarImageSearchError.invalidResponseFormat
         }
 
-        // Download results concurrently, dropping failures
-        let results = items.filter { $0.width > 0 && $0.height > 0 }  // filter out invalid hits
+        // Download results sequentially, dropping failures
         var images: [CGImage] = []
-        for item in results {
+        for itemDict in itemsArray {
+            guard let link = itemDict["link"] as? String, !link.isEmpty else { continue }
+
             do {
-                if let downloaded = try await downloadImage(from: item) {
+                if let downloaded = try await downloadImage(from: link) {
                     images.append(downloaded)
                 }
             } catch {
@@ -77,26 +64,15 @@ enum SimilarImageSearch {
         return images
     }
 
-    /// Downloads a single image from the hit's image_url.
-    private static func downloadImage(from hit: Hit) async throws -> CGImage? {
-        guard let urlString = hit.imageURL,
-              let url = URL(string: urlString),
-              let httpUrl = url as NSURL else {
-            return nil
-        }
-
-        // Check if we already have this URL cached (unlikely in prototype)
-        if let cached = DownloadCache.shared[cachedKey: urlString],
-           let cg = cached.cgImage {
-            return cg
-        }
+    /// Downloads a single image from the given URL.
+    private static func downloadImage(from urlString: String) async throws -> CGImage? {
+        guard let url = URL(string: urlString) else { return nil }
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: URLRequest(url: httpUrl))
+            let (data, response) = try await URLSession.shared.data(from: url)
 
             guard let httpResponse = response as? HTTPURLResponse,
-                  (200...204).contains(httpResponse.statusCode) else {
-                // 404s and network errors get dropped
+                  (200...299).contains(httpResponse.statusCode) else {
                 return nil
             }
 
@@ -105,47 +81,25 @@ enum SimilarImageSearch {
                 return nil
             }
 
-            // Cache the result
-            DownloadCache.shared[cachedKey: urlString] = cgImage
-
             return cgImage
         } catch {
-            // Network or decode failures get dropped
             return nil
         }
     }
 
-    /// Cache for already-downloaded image URLs → CGImage mapping.
-    private enum DownloadCache {
-        static let shared = DownloadCache()
-
-        private var cache: [String: CGImage] = [:]
-
-        subscript(cachedKey key: String) -> CGImage? {
-            get { cache[key] }
-            set { cache[key] = newValue }
-        }
-    }
-
-    /// A single Google Custom Search hit for images.
-    private struct Hit: Codable {
-        let title: String
-        let link: String
-        let width: Int
-        let height: Int
-        let thumbnailLink: String?
-
-        var imageURL: String {
-            thumbnailLink ?? link
-        }
-    }
-
-    enum SimilarImageSearchError: Error {
+    enum SimilarImageSearchError: Error, LocalizedError {
         case missingAPIKey
         case requestSerializationFailed
         case httpError(code: Int, body: String?)
         case invalidResponseFormat
-        case downloadFailed(reason: String)
-        case genericError(error: Error)
+
+        var errorDescription: String? {
+            switch self {
+            case .missingAPIKey: return "Google Search API key is not configured. Add your key to Secrets.swift."
+            case .requestSerializationFailed: return "Failed to build search request."
+            case .httpError(let code, let body): return "HTTP error \(code): \(body ?? "no body")"
+            case .invalidResponseFormat: return "Unexpected response format from Google."
+            }
+        }
     }
 }

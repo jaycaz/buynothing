@@ -15,43 +15,13 @@ enum CapturedPhotoNormalizer {
 
     /// Normalizes a photo's orientation by rotating it to match its EXIF orientation.
     static func normalize(_ photo: UIImage) -> UIImage {
-        guard let exif = photo.imageOrientation,
-              let original = photo.cgImage else {
-            // No EXIF or no CGImage: return as-is
-            return photo
-        }
-
-        // Rotate to correct orientation (EXIF defines how image is stored vs. how it should be displayed)
-        switch exif {
-        case .up:
-            return UIImage(cgImage: original)
-        case .upMirrored:
-            // Flip horizontally (mirror)
-            return UIImage(cgImage: original, transform: CGAffineTransform.makeHorizontalFlip())
-        case .left:
-            // Rotate 90° clockwise
-            return UIImage(cgImage: original, transform: CGAffineTransform.rotation90CW)
-        case .leftMirrored:
-            // Rotate 90° CW + mirror = rotate 270° CW
-            return UIImage(cgImage: original, transform: CGAffineTransform.rotation90CW)
-            // Actually: mirror then rotate90CW = rotate 270 CW
-        case .right:
-            // Rotate 90° CCW (or 270° CW)
-            return UIImage(cgImage: original, transform: CGAffineTransform.rotation90CCW)
-        case .rightMirrored:
-            // Rotate 270° CW
-            return UIImage(cgImage: original, transform: CGAffineTransform.rotation90CW)
-        @unknown default:
-            return UIImage(cgImage: original)
+        // UIGraphicsImageRenderer automatically applies the image's orientation transform,
+        // producing a .up image with correct pixel data regardless of EXIF orientation
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = photo.scale
+        let renderer = UIGraphicsImageRenderer(size: photo.size, format: format)
+        return renderer.image { ctx in
+            photo.draw(in: CGRect(origin: .zero, size: photo.size))
         }
     }
-}
-
-private extension CGAffineTransform {
-    static func makeHorizontalFlip() -> CGAffineTransform {
-        return CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: 0, ty: 0)
-    }
-
-    static let rotation90CW = CGAffineTransform(rotationAngle: .pi / 2)
-    static let rotation90CCW = CGAffineTransform(rotationAngle: -.pi / 2)
 }

@@ -43,7 +43,7 @@ enum ObjectOrientationAligner {
     /// without re-scanning the image. Ratio near 1 means blobby/circular; higher values
     /// indicate elongated shapes.
     private static func principalElongationRatio(ofMask maskImage: CGImage) -> Double {
-        guard let bytes = ImageGeometry.topDownGrayscaleBytes(from: maskImage) else { return 0.0 }
+        guard let bytes = ImageGeometry.topDownGrayscaleBytes(from: maskImage) else { return 1.0 }
         let width = maskImage.width
         let height = maskImage.height
 
@@ -64,7 +64,7 @@ enum ObjectOrientationAligner {
                 sumXY += w * dx * dy
             }
         }
-        guard weightSum > 0 else { return 0.0 }
+        guard weightSum > 0 else { return 1.0 }
 
         let ixx = sumXX - sumX * sumX / weightSum
         let iyy = sumYY - sumY * sumY / weightSum
@@ -117,56 +117,6 @@ enum ObjectOrientationAligner {
         // Angle of the dominant eigenvector of the 2x2 covariance matrix [[ixx, ixy], [ixy, iyy]].
         let angle = 0.5 * atan2(2 * ixy, ixx - iyy)
         return CGFloat(angle)
-    }
-
-    /// Elongation ratio = λ₁ / λ₂ where λ₁ ≥ λ₂ are the eigenvalues of the 2×2 covariance matrix.
-    /// Values near 1 indicate blobby/circular objects; higher values indicate elongation.
-    /// Computed in closed form from the existing covariance terms to avoid a second image pass.
-    private static func principalElongationRatio(ofMask maskImage: CGImage) -> Double {
-        guard let bytes = ImageGeometry.topDownGrayscaleBytes(from: maskImage) else { return 1.0 }
-        let width = maskImage.width
-        let height = maskImage.height
-
-        // Single-pass raw moments (same as in principalAxisAngle).
-        var weightSum = 0.0
-        var sumX = 0.0, sumY = 0.0
-        var sumXX = 0.0, sumYY = 0.0, sumXY = 0.0
-        for y in 0..<height {
-            let rowOffset = y * width
-            for x in 0..<width {
-                let w = Double(bytes[rowOffset + x]) / 255.0
-                guard w > 0 else { continue }
-                let dx = Double(x), dy = Double(y)
-                weightSum += w
-                sumX += w * dx
-                sumY += w * dy
-                sumXX += w * dx * dx
-                sumYY += w * dy * dy
-                sumXY += w * dx * dy
-            }
-        }
-        guard weightSum > 0 else { return 1.0 }
-
-        let ixx = sumXX - sumX * sumX / weightSum
-        let iyy = sumYY - sumY * sumY / weightSum
-        let ixy = sumXY - sumX * sumY / weightSum
-
-        // Eigenvalues of the covariance matrix [[ixx, ixy], [ixy, iyy]]:
-        // λ = (trace ± sqrt(trace² - 4·det)) / 2
-        let trace = ixx + iyy
-        let determinant = ixx * iyy - ixy * ixy
-        
-        // degenerate cases
-        if trace == 0 { return 1.0 }
-        let discriminant = trace * trace - 4 * determinant
-        guard discriminant >= 0 else { return 1.0 } // numerical noise
-        
-        let sqrtDisc = sqrt(discriminant)
-        let lambda1 = (trace + sqrtDisc) / 2.0
-        let lambda2 = (trace - sqrtDisc) / 2.0
-
-        // Return ratio of larger to smaller eigenvalue
-        return lambda1 >= lambda2 ? lambda1 / lambda2 : 1.0
     }
 
     // Inline sqrt since Math is not available

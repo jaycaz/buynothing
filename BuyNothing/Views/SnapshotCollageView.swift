@@ -5,197 +5,277 @@
 //  DEBUG-only screen for testing the one-shot personalized collage flow:
 //  capture → segment → align → identify → search → pack → show.
 //
-//  ⚠️ Requires API keys in Secrets.swift.
+//  ⚠️ Requires API keys in Secrets.swift and iOS 17+ for segmentation.
 //
 
 import SwiftUI
-
-// MARK: - PlaceholderCameraPicker
-
-struct PlaceholderCameraPicker: View {
-    @State private var capturedPhoto: UIImage?
-    
-    var body: some View {
-        ZStack {
-            HStack {
-                Button {
-                    capturedPhoto = UIImage(cgImage: generatePlaceholderImage())
-                } label: {
-                    Label("Capture", systemImage: "camera.fill")
-                }
-                .buttonStyle(.borderedProminent)
-                
-                Button {
-                    capturedPhoto = UIImage(cgImage: generatePlaceholderImage())
-                } label: {
-                    Label("Library", systemImage: "photo.on.rectangle")
-                }
-                .buttonStyle(.bordered)
-                
-                Spacer()
-            }
-            
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.blue.opacity(0.7))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-    
-    private func generatePlaceholderImage() -> CGImage {
-        guard let context = CGContext(data: nil, width: 512, height: 512, bitsPerComponent: 8,
-                                     bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
-                                     bitmapInfo: CGImageAlphaInfo.none.rawValue) else {
-            return CGImage()
-        }
-        
-        context.fill(CGRect(x: 0, y: 0, width: 512, height: 512),
-                   with: .patternColor(patternColor: UIColor.systemBlue),
-                   option: .intoFill)
-        
-        return context.makeImage()!
-    }
-}
-
-// MARK: - PhotoLibraryPicker
-
-struct PhotoLibraryPicker: View {
-    
-    var body: some View {
-        ZStack {
-            Text("Select a photo from your library")
-                .font(.headline)
-                .foregroundColor(.primary)
-            
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.accentColor.opacity(0.7))
-                .frame(width: 200, height: 200)
-        }
-    }
-}
-
-// MARK: - SnapshotCollageView
+import UIKit
 
 struct SnapshotCollageView: View {
     @StateObject private var model = SnapshotCollageModel()
-    @State private var showingAlert = false
-    
+    @State private var showingCamera = false
+    @State private var showingLibrary = false
+    @State private var alertMessage: String?
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
-        Group {
-            if model.showCamera {
-                cameraView
-            } else if model.showLibrary {
-                libraryView
-            } else if model.showResult {
-                resultView
-            } else {
-                processingView
+        NavigationStack {
+            Group {
+                if model.showResult {
+                    resultView
+                } else if model.isProcessing {
+                    processingView
+                } else {
+                    captureView
+                }
+            }
+            .navigationTitle("Snapshot Collage")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
+                }
+            }
+            .sheet(isPresented: $showingCamera) {
+                CameraCaptureView(onPhoto: { photo in
+                    showingCamera = false
+                    Task { await model.capturePhoto(photo) }
+                })
+            }
+            .sheet(isPresented: $showingLibrary) {
+                PhotoPicker(onPhoto: { photo in
+                    showingLibrary = false
+                    Task { await model.selectLibraryPhoto(photo) }
+                })
+            }
+            .task {
+                if model.isAlerting {
+                    alertMessage = model.pipelineError
+                }
+            }
+            .alert("Snapshot Collage", isPresented: Binding<Bool>(
+                get: { alertMessage != nil },
+                set: { if !$0 { alertMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                if let error = alertMessage {
+                    Text("Error: \(error)")
+                }
             }
         }
-        .alert("Snapshot Collage", isPresented: $showingAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            model.pipelineError.map { "Error: \($0)" }
+    }
+
+    private var captureView: some View {
+        VStack(spacing: 24) {
+            VStack(spacing: 16) {
+                Image(systemName: "camera.viewfinder")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.secondary)
+                Text("Snap a photo of something you own")
+                    .font(.title2.bold())
+                Text("We'll cut it out, find similar items, and make a collage.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal)
+
+            VStack(spacing: 12) {
+                Button {
+                    showingCamera = true
+                } label: {
+                    Label("Take Photo", systemImage: "camera.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    showingLibrary = true
+                } label: {
+                    Label("Choose from Library", systemImage: "photo.on.rectangle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(.horizontal)
+
+            Spacer()
         }
+        .padding(.vertical)
     }
-    
-    private var cameraView: some View {
-        PlaceholderCameraPicker
-            .frame(maxWidth: 500)
-        Text("Tap Capture or Library to take a photo.")
-            .font(.caption)
-            .foregroundColor(.secondary)
-            .padding(.bottom, 16)
-    }
-    
-    private var libraryView: some View {
-        PhotoLibraryPicker
-            .frame(maxWidth: 500)
-    }
-    
+
     private var processingView: some View {
         VStack(spacing: 24) {
             ProgressView()
-                .scaleEffect(model.isProcessing ? 1.1 : 1.0)
-                .animation(.spring(), value: model.isProcessing)
-            
-            if let error = model.pipelineError {
-                Text(error)
-                    .font(.headline)
-                    .foregroundColor(.red)
-            } else {
-                Text(model.pipelineStage ?? "Processing...")
+                .scaleEffect(1.2)
+
+            if let stage = model.pipelineStage {
+                Text(stage)
                     .font(.headline)
             }
-            
+
             if !model.messages.isEmpty {
-                ForEach(model.messages, id: \.self) { msg in
-                    Text(msg)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.vertical, 4)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(model.messages, id: \.self) { msg in
+                            Text(msg)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.vertical, 2)
+                        }
+                    }
+                    .padding(.horizontal)
                 }
+                .frame(height: 120)
             }
-            
-            if model.showCamera {
-                Button("Tap Capture or Library") {}
-            }
-            
+
             Spacer()
         }
         .padding()
     }
-    
+
     private var resultView: some View {
-        VStack(spacing: 24) {
-            if let collage = model.collageImage {
-                Text("Your Personalized Collage")
-                    .font(.title2.bold())
-                    .padding(.bottom, 8)
-                
-                Image(uiImage: collage)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 24))
-                    .background(Color(.secondarySystemBackground))
-            }
-            
-            if let userItem = model.userAlignedItem,
-               let idx = model.collageItems.firstIndex(where: { item in
-                   return item == userItem
-               }) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Your item was included in the collage!")
-                        .font(.headline)
-                        .foregroundColor(.green)
-                    
-                    Text("It's sitting among \(model.collageItems.count) similar items we found online.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+        ScrollView {
+            VStack(spacing: 20) {
+                if let collage = model.collageImage {
+                    Text("Your Collage")
+                        .font(.title2.bold())
+
+                    Image(uiImage: collage)
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .background(Color(.secondarySystemBackground))
                 }
+
+                if let userItem = model.userAlignedItem {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Your Item")
+                            .font(.headline)
+                        Image(uiImage: UIImage(cgImage: userItem))
+                            .resizable()
+                            .scaledToFit()
+                            .frame(height: 150)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .background(Color(.tertiarySystemBackground))
+                    }
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                if !model.collageItems.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Found \(model.collageItems.count - 1) similar items")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal)
+                }
+
+                Button {
+                    model.reset()
+                } label: {
+                    Label("Try Another Item", systemImage: "arrow.counterclockwise")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .padding(.horizontal)
             }
-            
-            Button("Try Another Item") {
-                model.reset()
-            }
-            .buttonStyle(.bordered)
-            .padding()
+            .padding(.vertical)
         }
-        .padding()
     }
 }
 
-// MARK: - CollageRendererPreview
+// MARK: - Camera Capture
 
-struct CollageRendererPreview: View {
-    let collage: UIImage
-    
+struct CameraCaptureView: View {
+    let onPhoto: (UIImage) -> Void
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
-        Image(uiImage: collage)
-            .resizable()
-            .scaledToFit()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .background(Color(.secondarySystemBackground))
+        CameraCapturePicker { photo in
+            onPhoto(photo)
+        }
+    }
+}
+
+struct CameraCapturePicker: UIViewControllerRepresentable {
+    let onPhoto: (UIImage) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: CameraCapturePicker
+
+        init(parent: CameraCapturePicker) { self.parent = parent }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.onPhoto(image)
+            }
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
+    }
+}
+
+// MARK: - Photo Library Picker
+
+struct PhotoPicker: View {
+    let onPhoto: (UIImage) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        PhotoLibraryPicker { photo in
+            onPhoto(photo)
+        }
+    }
+}
+
+struct PhotoLibraryPicker: UIViewControllerRepresentable {
+    let onPhoto: (UIImage) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .photoLibrary
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: PhotoLibraryPicker
+
+        init(parent: PhotoLibraryPicker) { self.parent = parent }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.onPhoto(image)
+            }
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
     }
 }

@@ -8,7 +8,7 @@
 //
 
 import Foundation
-import simd
+import UIKit
 
 /// Encapsulates the result of identifying an item from a photo.
 enum ItemIdentifier {
@@ -21,54 +21,22 @@ enum ItemIdentifier {
         let searchQuery: String
     }
 
-    /// Calls an external vision AI (Claude) to identify the item in `cgImage`,
-    /// then generates a Google image-search query optimized for the result.
-    ///
-    /// Returns a structured JSON response with `name` and `searchQuery` fields.
+    /// Calls Claude via the Messages API with a vision call to identify the item.
     ///
     /// - Parameter cgImage: The cutout image (transparent background already removed).
     /// - Returns: An `Identification` result containing the identified name and search query.
-    /// - Throws: If the API call fails.
-    ///
-    /// - Note: This is prototype-only and requires `Secrets.claudeAPIKey` to be set.
-    /// - Note: Errors are reported but not fatal (see `handleAPIError(_:)`).
-    ///
+    /// - Throws: If the API call fails or the response is invalid.
     static func identify(_ cgImage: CGImage) async throws -> Identification {
-        // This would be the main identify call — stubbed for prototype.
-        let result = try handleAPIError("stub")
-        return result
-    }
-
-    /// Calls Claude via `CLAUDE_API_URL` endpoint with a vision call.
-    ///
-    /// Request:
-    /// ```json
-    /// {
-    ///   "model": "claude-haiku-4-5",
-    ///   "max_tokens": 256,
-    ///   "temperature": 0.7,
-    ///   "json_mode": true,
-    ///   "input": {
-    ///     "images": [{"source": "base64", "data": "..."}],
-    ///     "text": "Identify this item and return a JSON object with two fields: name (e.g. 'red mug'), searchQuery (e.g. 'red mug'). Keep it brief, just enough for Google image search."
-    ///   }
-    /// }
-    /// ```
-    ///
-    /// Expected response (when json_mode is true):
-    /// ```json
-    /// {"name": "white ceramic mug", "searchQuery": "white ceramic mug"}
-    /// ```
-    static func handleAPIError(_ cgImage: CGImage) async throws -> Identification {
-        guard let apiKey = Secrets.claudeAPIKey, !apiKey.isEmpty else {
+        let apiKey = Secrets.claudeAPIKey
+        guard !apiKey.isEmpty, apiKey != "your-claude-api-key-here" else {
             throw ItemIdentifierError.missingAPIKey
         }
 
-        guard let cgJpeg = cgImage.jpegData(compressionQuality: 0.7) else {
+        guard let jpegData = cgImage.jpegData(compressionQuality: 0.7) else {
             throw ItemIdentifierError.imageEncodingFailed
         }
 
-        let base64Data = cgJpeg.base64EncodedString(options: [.endLineWithLineFeed])
+        let base64Data = jpegData.base64EncodedString(options: [.endLineWithLineFeed])
 
         let requestBody: [String: Any] = [
             "model": "claude-haiku-4-5",
@@ -91,57 +59,61 @@ enum ItemIdentifier {
             ]
         ]
 
-        guard let bodyJSON = try? JSONSerialization.data(withJSONObject: requestBody),
-              let bodyString = String(data: bodyJSON, encoding: .utf8) else {
+        guard let bodyJSON = try? JSONSerialization.data(withJSONObject: requestBody) else {
             throw ItemIdentifierError.requestSerializationFailed
         }
 
-        let url = URL(string: Secrets.claudeAPIURL)
-        guard let url = url else {
+        guard let apiURL = URL(string: Secrets.claudeAPIURL) else {
             throw ItemIdentifierError.invalidAPIURL
         }
 
-        let headers = [
-            "Authorization": "Bearer \(Secrets.claudeAPIKey)",
-            "Content-Type": "application/json"
-        ]
-
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: apiURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(Secrets.claudeAPIKey, forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         request.httpBody = bodyJSON
 
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
 
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...204).contains(httpResponse.statusCode) else {
-                throw ItemIdentifierError.httpError(code: httpResponse.statusCode, body: String(data: data, encoding: .utf8))
-            }
-
-            guard let json = try JSONSerialization.jsonObject(with: data),
-                  let result = json as? [String: Any],
-                  let name = result["name"] as? String,
-                  let searchQuery = result["searchQuery"] as? String else {
-                throw ItemIdentifierError.invalidResponseFormat
-            }
-
-            // Validate that output looks reasonable (non-empty, not obviously wrong).
-            guard name.count >= 2, searchQuery.count >= 2, name.lowercased() != searchQuery.lowercased() else {
-                throw ItemIdentifierError.suspectOutput
-            }
-
-            return Identification(name: name, searchQuery: searchQuery)
-
-        } catch let decodingError as DecodingError {
-            throw ItemIdentifierError.decodingError(error: decodingError, rawResponse: String(data: data, encoding: .utf8))
-        } catch {
-            throw ItemIdentifierError.genericError(error: error)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ItemIdentifierError.invalidResponseFormat
         }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw ItemIdentifierError.httpError(code: httpResponse.statusCode, body: String(data: data, encoding: .utf8))
+        }
+
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw ItemIdentifierError.invalidResponseFormat
+        }
+
+        // Claude structured output may wrap in content array
+        if let content = json["content"] as? [[String: Any]], let first = content.first {
+            if let name = first["name"] as? String,
+               let searchQuery = first["searchQuery"] as? String {
+                return Identification(name: name, searchQuery: searchQuery)
+            }
+            // Try text field with JSON inside
+            if let text = first["text"] as? String,
+               let textData = text.data(using: .utf8),
+               let textJson = try? JSONSerialization.jsonObject(with: textData) as? [String: Any],
+               let name = textJson["name"] as? String,
+               let searchQuery = textJson["searchQuery"] as? String {
+                return Identification(name: name, searchQuery: searchQuery)
+            }
+        }
+
+        // Direct JSON response
+        if let name = json["name"] as? String,
+           let searchQuery = json["searchQuery"] as? String {
+            return Identification(name: name, searchQuery: searchQuery)
+        }
+
+        throw ItemIdentifierError.invalidResponseFormat
     }
 
-    enum ItemIdentifierError: Error {
+    enum ItemIdentifierError: Error, LocalizedError {
         case missingAPIKey
         case imageEncodingFailed
         case requestSerializationFailed
@@ -149,7 +121,26 @@ enum ItemIdentifier {
         case httpError(code: Int, body: String?)
         case invalidResponseFormat
         case suspectOutput
-        case decodingError(error: DecodingError, rawResponse: String)
         case genericError(error: Error)
+
+        var errorDescription: String? {
+            switch self {
+            case .missingAPIKey: return "Claude API key is not configured. Add your key to Secrets.swift."
+            case .imageEncodingFailed: return "Failed to encode image for API request."
+            case .requestSerializationFailed: return "Failed to serialize API request."
+            case .invalidAPIURL: return "Invalid Claude API URL configured."
+            case .httpError(let code, let body): return "HTTP error \(code): \(body ?? "no body")"
+            case .invalidResponseFormat: return "Unexpected response format from Claude API."
+            case .suspectOutput: return "API returned suspicious output."
+            case .genericError(let error): return "API error: \(error.localizedDescription)"
+            }
+        }
+    }
+}
+
+private extension CGImage {
+    func jpegData(compressionQuality: CGFloat) -> Data? {
+        let image = UIImage(cgImage: self)
+        return image.jpegData(compressionQuality: compressionQuality)
     }
 }

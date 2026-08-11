@@ -6,7 +6,7 @@
 //  segment→align→identify→search→process pipeline, and builds a collage that
 //  mixes the user's item with AI-sourced similar items.
 //
-//  ⚠️ Requires API keys in Secrets.swift.
+//  ⚠️ Requires API keys in Secrets.swift and iOS 17+ for on-device segmentation.
 //
 
 import Foundation
@@ -33,9 +33,9 @@ final class SnapshotCollageModel: ObservableObject {
 
     /// Final rendered collage
     @Published private(set) var collageImage: UIImage?
-    
+
     @Published private(set) var isProcessing: Bool = false
-    
+
     @Published private(set) var isAlerting: Bool = false
 
     /// Progress messages for each stage
@@ -52,7 +52,7 @@ final class SnapshotCollageModel: ObservableObject {
         isProcessing = false
         isAlerting = false
     }
-    
+
     func reset() {
         showCamera = true
         showLibrary = false
@@ -68,12 +68,20 @@ final class SnapshotCollageModel: ObservableObject {
         isAlerting = false
     }
 
+    func capturePhoto(_ photo: UIImage) async {
+        showCamera = false
+        showLibrary = false
+        showResult = false
+        capturedPhoto = photo
+        await addPhoto(photo, fromCamera: true)
+    }
+
     func selectLibraryPhoto(_ photo: UIImage) async {
         showCamera = false
         showLibrary = false
         showResult = false
         capturedPhoto = photo
-        await processPhoto(photo.cgImage!)
+        await addPhoto(photo, fromCamera: false)
     }
 
     private func onMessageUpdate(_ msg: String) {
@@ -88,30 +96,8 @@ final class SnapshotCollageModel: ObservableObject {
         }
     }
 
-    /// Core processing hook: given a photo, run segment→align and return aligned image.
-    private func processPhoto(_ cgImage: CGImage, onStage: @Sendable (String) -> Void = { _ in }, onError: @Sendable (String) -> Void = { _ in }) async -> (userAligned: CGImage?, sourcedItems: [CGImage]) {
-        // Set processing flag before any async work
-        isProcessing = true
-        
-        let cutout: ForegroundSegmenter.Cutout?
-        do {
-            cutout = try await ForegroundSegmenter.cutoutForegroundObject(from: cgImage)
-            onStage("Segmented: \(cutout.alphaMask.size.width)×\(cutout.alphaMask.size.height)")
-        } catch {
-            onError("Segmentation failed: \(error)")
-            return (nil, [])
-        }
-
-        guard let cutout = cutout else { return (nil, []) }
-
-        let aligned = ObjectOrientationAligner.align(cutout)
-        
-        isProcessing = false
-        return (aligned, [])
-    }
-
     /// Full pipeline for a captured photo: segment→align, identify, search, pack all.
-    private func addPhoto(_ photo: UIImage) async {
+    private func addPhoto(_ photo: UIImage, fromCamera: Bool) async {
         guard let cgImage = photo.cgImage else {
             onError("Invalid photo")
             isAlerting = true
@@ -120,9 +106,9 @@ final class SnapshotCollageModel: ObservableObject {
 
         pipelineStage = "Capturing..."
 
-        // 1️⃣ Capture normalizes orientation
-        if !showLibrary {
-            let normalized = await CapturedPhotoNormalizer.normalize(photo)
+        // 1️⃣ Capture normalizes orientation (only needed for camera captures)
+        if fromCamera {
+            let normalized = CapturedPhotoNormalizer.normalize(photo)
             await MainActor.run { self.capturedPhoto = normalized }
         }
 
@@ -130,8 +116,15 @@ final class SnapshotCollageModel: ObservableObject {
         pipelineError = nil
         isProcessing = true
 
+        guard #available(iOS 17.0, *) else {
+            onError("On-device segmentation requires iOS 17 or later.")
+            isAlerting = true
+            isProcessing = false
+            return
+        }
+
         do {
-            let cutout = try await ForegroundSegmenter.cutoutForegroundObject(from: cgImage)
+            let cutout = try ForegroundSegmenter.cutoutForegroundObject(from: cgImage)
 
             let aligned = ObjectOrientationAligner.align(cutout)
             await MainActor.run { self.userAlignedItem = aligned }
@@ -144,7 +137,7 @@ final class SnapshotCollageModel: ObservableObject {
             do {
                 let idResult = try await ItemIdentifier.identify(aligned)
                 identification = idResult
-                onMessageUpdate("Identified: \"\(identification.name)\"")
+                onMessageUpdate("Identified: \"\(idResult.name)\"")
             } catch {
                 onError("Identification failed: \(error)")
                 // If we can't identify, still include the aligned item but no AI items
@@ -155,36 +148,48 @@ final class SnapshotCollageModel: ObservableObject {
             onMessageUpdate("Searching for similar items...")
 
             // 3️⃣ Search (Google Custom Search)
-            do {
-                var allImages = try await SimilarImageSearch.fetch(query: identification!.searchQuery, count: 6)
-                onMessageUpdate("Found \(allImages.count) similar items")
+            if let query = identification?.searchQuery {
+                do {
+                    let allImages = try await SimilarImageSearch.fetch(query: query, count: 6)
+                    onMessageUpdate("Found \(allImages.count) similar items")
 
-                // Add user item + sourced items
+                    // Add user item + sourced items
+                    await MainActor.run {
+                        self.userAlignedItem = aligned
+                        self.collageItems = [aligned] + allImages
+                    }
+                } catch {
+                    onError("Search failed: \(error)")
+                    // Fallback: just the user item
+                    await MainActor.run {
+                        self.userAlignedItem = aligned
+                        self.collageItems = [aligned]
+                    }
+                }
+            } else {
+                // No identification available, just use the user item
                 await MainActor.run {
                     self.userAlignedItem = aligned
-                    self.collageItems = (self.userAlignedItem == nil ? [] : [self.userAlignedItem!]) + allImages
+                    self.collageItems = [aligned]
                 }
-            } catch {
-                onError("Search failed: \(error)")
-                // Fallback: just the user item
-                await MainActor.run { self.userAlignedItem = aligned }
             }
 
             pipelineStage = "Packing..."
-            onMessageUpdate("Pack collage...")
+            onMessageUpdate("Packing collage...")
 
             // 4️⃣ Pack and render
-            if !collageItems.isEmpty {
-                let layout = CollageJustifiedPacker.pack(itemSizes: collageItems.map { CGSize(width: $0.width, height: $0.height) }, canvasWidth: 900, targetRowHeight: 220)
-                let rendered = CollageRenderer.render(collage: collageItems, layout: layout)
+            await MainActor.run {
+                if !self.collageItems.isEmpty {
+                    let sizes = self.collageItems.map { CGSize(width: $0.width, height: $0.height) }
+                    let layout = CollageJustifiedPacker.pack(itemSizes: sizes, canvasWidth: 900, targetRowHeight: 220)
+                    let rendered = Self.renderCollage(images: self.collageItems, layout: layout)
 
-                await MainActor.run {
                     self.collageImage = rendered
                     self.showResult = true
                 }
-                
-                pipelineStage = nil
-                onMessageUpdate("Done! You have \(collageItems.count) item(s).")
+
+                self.pipelineStage = nil
+                onMessageUpdate("Done! You have \(self.collageItems.count) item(s).")
             }
         } catch {
             onError("Processing failed: \(error)")
@@ -193,28 +198,19 @@ final class SnapshotCollageModel: ObservableObject {
         isProcessing = false
     }
 
-    /// Mark which item is actually the user's (index 0 if present).
-    private func markUserItem() {
-        if let idx = collageItems.firstIndex(where: { item in
-            // Simple heuristic: user item is the one from original capture
-            // (AI images would be processed differently; for now just mark index 0)
-            // In a fuller version, compare aligned vs original
-            return item == userAlignedItem
-        }) {
-            collageItems[idx] = userAlignedItem!
-        }
-    }
-
-    /// Render a visual overlay indicating which items are user-provided vs AI-sourced.
-    private func renderWithMarkings() -> UIImage {
-        // For prototype: just mark the user item with a blue border
-        let renderer = UIGraphicsImageRenderer(size: collageImage!.size, format: UIGraphicsImageRendererFormat())
+    /// Renders a collage from aligned images using the justified packer layout.
+    nonisolated private static func renderCollage(images: [CGImage], layout: CollageJustifiedPacker.Layout) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = true
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: layout.canvasSize, format: format)
         return renderer.image { ctx in
-            ctx.clip(to: collageImage!.cgImage.size, with: .rect)
-            ctx.draw(collageImage!.cgImage!, in: CGRect(origin: .zero, size: collageImage!.cgImage.size))
-
-            // Draw blue border around user item
-            // (In a real version, we'd track individual item rects from the packer)
+            UIColor(white: 0.96, alpha: 1).setFill()
+            ctx.fill(CGRect(origin: .zero, size: layout.canvasSize))
+            for placement in layout.placements {
+                let image = images[placement.index]
+                ctx.cgContext.draw(image, in: placement.rect)
+            }
         }
     }
 }
