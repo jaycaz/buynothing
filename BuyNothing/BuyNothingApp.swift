@@ -121,7 +121,7 @@ enum CollageDebugDump {
 
         var sourceStream: AsyncThrowingStream<CGImage, Error>
         if let localImages = env["COLLAGE_SNAPSHOT_LOCAL_IMAGES"], !localImages.isEmpty {
-            // DEBUG mechanism test: serve local files in place of the Google API, so the
+            // DEBUG mechanism test: serve local files in place of the image search API, so the
             // stream→process→pack loop can be verified without network or API keys. Each
             // file goes through the same processSourcedImageData pipeline as downloaded
             // results; staggerMs spreads the starts so items arrive one by one.
