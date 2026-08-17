@@ -104,3 +104,7 @@ iOSInjectionProject/
 # Secrets (prototype API keys)
 BuyNothing/Config/Secrets.swift
 BuyNothing/Config/Secrets.example.swift
+
+# Local build artifacts + agent scratch
+build-sim/
+.pi-subagents/

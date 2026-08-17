@@ -165,14 +165,22 @@ struct SnapshotCollageView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
-                if !model.collageItems.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Found \(model.collageItems.count - 1) similar items")
+                VStack(alignment: .leading, spacing: 8) {
+                    if model.isStreaming {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Found \(model.sourcedCount) similar items — more streaming in…")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Text("Found \(model.sourcedCount) similar items")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal)
                 }
+                .padding(.horizontal)
 
                 Button {
                     model.reset()

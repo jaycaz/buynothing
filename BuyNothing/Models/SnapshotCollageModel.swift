@@ -38,6 +38,15 @@ final class SnapshotCollageModel: ObservableObject {
 
     @Published private(set) var isAlerting: Bool = false
 
+    /// True while sourced items are still streaming in (the collage is growing live)
+    @Published private(set) var isStreaming: Bool = false
+
+    /// How many sourced items have been packed in so far
+    @Published private(set) var sourcedCount: Int = 0
+
+    /// The task consuming the sourced-item stream; canceled when a new capture starts
+    private var streamTask: Task<Void, Never>?
+
     /// Progress messages for each stage
     @Published private(set) var messages: [String] = []
 
@@ -51,6 +60,10 @@ final class SnapshotCollageModel: ObservableObject {
         messages.removeAll()
         isProcessing = false
         isAlerting = false
+        streamTask?.cancel()
+        streamTask = nil
+        isStreaming = false
+        sourcedCount = 0
     }
 
     func reset() {
@@ -66,6 +79,10 @@ final class SnapshotCollageModel: ObservableObject {
         collageImage = nil
         isProcessing = false
         isAlerting = false
+        streamTask?.cancel()
+        streamTask = nil
+        isStreaming = false
+        sourcedCount = 0
     }
 
     func capturePhoto(_ photo: UIImage) async {
@@ -96,8 +113,15 @@ final class SnapshotCollageModel: ObservableObject {
         }
     }
 
-    /// Full pipeline for a captured photo: segment→align, identify, search, pack all.
+    /// Full pipeline for a captured photo: segment→align, identify, then stream similar
+    /// items in and pack each one as it lands (whichever finishes first goes in first).
     private func addPhoto(_ photo: UIImage, fromCamera: Bool) async {
+        // Start fresh: stop any stream still in flight from a previous capture
+        streamTask?.cancel()
+        streamTask = nil
+        isStreaming = false
+        sourcedCount = 0
+
         guard let cgImage = photo.cgImage else {
             onError("Invalid photo")
             isAlerting = true
@@ -140,56 +164,41 @@ final class SnapshotCollageModel: ObservableObject {
                 onMessageUpdate("Identified: \"\(idResult.name)\"")
             } catch {
                 onError("Identification failed: \(error)")
-                // If we can't identify, still include the aligned item but no AI items
-                await MainActor.run { self.userAlignedItem = aligned }
             }
 
-            pipelineStage = "Searching..."
-            onMessageUpdate("Searching for similar items...")
+            // 3️⃣ Pack + show the user's item immediately, then stream similar items in as
+            // each one finishes downloading + segmenting (completion order).
+            onMessageUpdate("Packing your item...")
+            userAlignedItem = aligned
+            collageItems = [aligned]
+            repackAndRender()
+            pipelineStage = nil
+            isProcessing = false
+            showResult = true
+            isStreaming = true
+            sourcedCount = 0
 
-            // 3️⃣ Search (Google Custom Search)
             if let query = identification?.searchQuery {
-                do {
-                    let allImages = try await SimilarImageSearch.fetch(query: query, count: 6)
-                    onMessageUpdate("Found \(allImages.count) similar items")
-
-                    // Add user item + sourced items
-                    await MainActor.run {
-                        self.userAlignedItem = aligned
-                        self.collageItems = [aligned] + allImages
+                onMessageUpdate("Streaming similar items in...")
+                streamTask = Task {
+                    do {
+                        let stream = SimilarImageSearch.fetchSegmentedStreaming(query: query, maxImages: 10)
+                        for try await image in stream {
+                            self.collageItems.append(image)
+                            self.sourcedCount += 1
+                            self.onMessageUpdate("Packed item \(self.sourcedCount)")
+                            self.repackAndRender()
+                        }
+                        self.onMessageUpdate("Done! You have \(self.collageItems.count) item(s).")
+                    } catch {
+                        self.onError("Stream stopped: \(error.localizedDescription)")
                     }
-                } catch {
-                    onError("Search failed: \(error)")
-                    // Fallback: just the user item
-                    await MainActor.run {
-                        self.userAlignedItem = aligned
-                        self.collageItems = [aligned]
-                    }
+                    self.isStreaming = false
                 }
             } else {
-                // No identification available, just use the user item
-                await MainActor.run {
-                    self.userAlignedItem = aligned
-                    self.collageItems = [aligned]
-                }
-            }
-
-            pipelineStage = "Packing..."
-            onMessageUpdate("Packing collage...")
-
-            // 4️⃣ Pack and render
-            await MainActor.run {
-                if !self.collageItems.isEmpty {
-                    let sizes = self.collageItems.map { CGSize(width: $0.width, height: $0.height) }
-                    let layout = CollageJustifiedPacker.pack(itemSizes: sizes, canvasWidth: 900, targetRowHeight: 220)
-                    let rendered = Self.renderCollage(images: self.collageItems, layout: layout)
-
-                    self.collageImage = rendered
-                    self.showResult = true
-                }
-
-                self.pipelineStage = nil
-                onMessageUpdate("Done! You have \(self.collageItems.count) item(s).")
+                // No identification available: user-only collage, nothing to stream
+                isStreaming = false
+                onMessageUpdate("Done! Showing just your item (identification unavailable).")
             }
         } catch {
             onError("Processing failed: \(error)")
@@ -198,8 +207,18 @@ final class SnapshotCollageModel: ObservableObject {
         isProcessing = false
     }
 
+    /// Packs the current collage items and re-renders the collage image. Cheap enough to
+    /// run on the main actor after every streamed item (O(n) pack + one render pass).
+    private func repackAndRender() {
+        guard !collageItems.isEmpty else { return }
+        let sizes = collageItems.map { CGSize(width: $0.width, height: $0.height) }
+        let layout = CollageJustifiedPacker.pack(itemSizes: sizes, canvasWidth: 900, targetRowHeight: 220)
+        collageImage = Self.renderCollage(images: collageItems, layout: layout)
+    }
+
     /// Renders a collage from aligned images using the justified packer layout.
-    nonisolated private static func renderCollage(images: [CGImage], layout: CollageJustifiedPacker.Layout) -> UIImage {
+    /// (Internal so the DEBUG dump hook in BuyNothingApp.swift can reuse it.)
+    nonisolated static func renderCollage(images: [CGImage], layout: CollageJustifiedPacker.Layout) -> UIImage {
         let format = UIGraphicsImageRendererFormat()
         format.opaque = true
         format.scale = 1
