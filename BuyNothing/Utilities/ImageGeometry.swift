@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#endif
 import CoreGraphics
 
 /// Low-level CGImage rotate/crop helpers shared by the orientation-alignment step.
@@ -27,6 +29,7 @@ enum ImageGeometry {
         let newH = abs(w * sin(angle)) + abs(h * cos(angle))
         let newSize = CGSize(width: ceil(newW), height: ceil(newH))
 
+        #if canImport(UIKit)
         let format = UIGraphicsImageRendererFormat()
         format.opaque = false
         format.scale = 1
@@ -39,6 +42,25 @@ enum ImageGeometry {
             ctx.cgContext.draw(cgImage, in: drawRect)
         }
         return image.cgImage ?? cgImage
+        #else
+        // macOS (used by tools/segtest): the same transform via a raw flipped CGContext,
+        // since UIGraphicsImageRenderer is UIKit-only.
+        guard let context = CGContext(
+            data: nil,
+            width: Int(newSize.width),
+            height: Int(newSize.height),
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return cgImage }
+        context.translateBy(x: 0, y: newSize.height)
+        context.scaleBy(x: 1, y: -1)
+        context.translateBy(x: newSize.width / 2, y: newSize.height / 2)
+        context.rotate(by: angle)
+        context.draw(cgImage, in: CGRect(x: -w / 2, y: -h / 2, width: w, height: h))
+        return context.makeImage() ?? cgImage
+        #endif
     }
 
     /// Crops an RGBA image to the tight bounding box of its non-transparent pixels.

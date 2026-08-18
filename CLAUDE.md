@@ -1,3 +1,7 @@
+## UI Guidelines
+- Prefer SwiftUI for all new views and UI work wherever possible.
+- Use UIKit only where it's required (camera capture, system pickers) and keep it behind a thin `UIViewControllerRepresentable`/`UIViewRepresentable` bridge.
+
 ## Git Commit Guidelines
 - For git commits, create one line that summarizes the purpose of the commit in one sentence, then the next line up to 2 sentences describing how that purpose was achieved, in plain English.
 

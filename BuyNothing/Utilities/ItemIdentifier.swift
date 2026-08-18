@@ -17,7 +17,8 @@ enum ItemIdentifier {
     struct Identification {
         /// A human-friendly name for the item (e.g. "white ceramic mug", "USB-C cable").
         let name: String
-        /// A search query optimized for image search (e.g. "white ceramic mug").
+        /// A broad product category for image search (e.g. "screwdriver"), so results
+        /// show many different looks of the item rather than one specific variant.
         let searchQuery: String
     }
 
@@ -54,7 +55,7 @@ enum ItemIdentifier {
                 ],
                 [
                     "type": "text",
-                    "text": "Identify this item. Return a JSON object with two fields: name and searchQuery. name is a descriptive display name. searchQuery is a concise phrase optimized for image search (keywords only, no fluff)."
+                    "text": "Identify this item. Return a JSON object with two fields: name and searchQuery. name is a descriptive display name (e.g. \"blue cordless screwdriver\"). searchQuery is the broad product category for this item type (e.g. \"screwdriver\", \"ceramic mug\", \"sneakers\") — keywords only, and do NOT include colors, brands, models, or other specifics, so that image search returns many different looks of the same kind of object."
                 ]
             ]
         ]
