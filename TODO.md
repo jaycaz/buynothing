@@ -7,6 +7,12 @@ and let gentle nudges connect the dots.
 
 ---
 
+## Queued Next (added 2026-08-17)
+- [ ] **In-app collage (iPhone)** — Wire the real iPhone capture flow to actually *produce* the collage end-to-end. Today the in-app flow only segments the photo and shows the test UI; **no collage is rendered**. Target: capture → segment → align → pack → display the final collage, reusing the shared `CollagePipeline` package so the app and the Mac harness drive the *same* pipeline core.
+  - Depends on: landing the Mac test harness first — it validates the pipeline and surfaces the model/param decisions to feed back into the in-app flow.
+
+---
+
 ## New: One-Shot Personalized Collage (Prototype)
 
 ### The Experience
