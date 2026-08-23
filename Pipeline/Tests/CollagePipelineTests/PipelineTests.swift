@@ -183,6 +183,29 @@ struct CollagePipelineTests {
         #expect(abs(bounds!.top - Int(ytd)) <= 20, "ink top \(bounds!.top) should be near topDownY \(ytd)")
     }
 
+    @Test("drawText respects the requested font size (no silent 12pt fallback)")
+    func drawTextRespectsSize() {
+        // Regression guard for the original board bug: with a wrong CoreText font attribute
+        // key, CTLine silently ignores the font and falls back to the default 12pt. Both
+        // orientation tests above still PASS in that state, so the size itself is pinned here.
+        // The same glyph rendered at 40pt and 12pt must differ substantially in ink height;
+        // if the size attribute is ignored both render at 12pt and the ratio collapses to ~1.
+        let W: CGFloat = 400, H: CGFloat = 200
+        let image = Canvas.render(width: Int(W), height: Int(H)) { ctx in
+            ctx.setFillColor(CGColor(gray: 1, alpha: 1))
+            ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
+            ImageIOHelpers.drawText("T", topDownX: 40, topDownY: 60, boardHeight: H, ctx: ctx, size: 40, color: CGColor(gray: 0, alpha: 1))
+            ImageIOHelpers.drawText("T", topDownX: 240, topDownY: 60, boardHeight: H, ctx: ctx, size: 12, color: CGColor(gray: 0, alpha: 1))
+        }
+        let big = Self.inkBounds(in: image, leftHalf: true)
+        let small = Self.inkBounds(in: image, leftHalf: false)
+        #expect(big != nil, "no ink rendered for 40pt 'T'")
+        #expect(small != nil, "no ink rendered for 12pt 'T'")
+        let bigH = CGFloat(big!.bottom - big!.top + 1)
+        let smallH = CGFloat(small!.bottom - small!.top + 1)
+        #expect(bigH > 1.8 * smallH, "40pt ink height \(bigH) not clearly larger than 12pt \(smallH): font size attribute is being ignored (silent 12pt fallback)")
+    }
+
     // MARK: - end-to-end
 
     @Test("full pipeline (ground truth) produces a collage with all items")
