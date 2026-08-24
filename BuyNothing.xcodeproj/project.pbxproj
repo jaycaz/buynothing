@@ -35,6 +35,7 @@
 		08232440E26C4AAEA9E6A17E /* EverydayObjectFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0658F48D93F442748F12C0FA /* EverydayObjectFeed.swift */; };
 		1716E13EC6B244C89A2ECB30 /* CollageBrowserModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF5C96D29F24A2BAF359ACA /* CollageBrowserModel.swift */; };
 		69B9B4E2ABEC4C999BCDC786 /* CollageCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14646BA6B29444FB967840F3 /* CollageCanvasView.swift */; };
+		518EDF5F489C4F4B886360B0 /* CollageBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA26A55184CA47CAB6BE66F7 /* CollageBrowserView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -79,6 +80,7 @@
 		0658F48D93F442748F12C0FA /* EverydayObjectFeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EverydayObjectFeed.swift; sourceTree = "<group>"; };
 		9AF5C96D29F24A2BAF359ACA /* CollageBrowserModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollageBrowserModel.swift; sourceTree = "<group>"; };
 		14646BA6B29444FB967840F3 /* CollageCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollageCanvasView.swift; sourceTree = "<group>"; };
+		EA26A55184CA47CAB6BE66F7 /* CollageBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollageBrowserView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -106,6 +108,7 @@
 		AA0010001A000001001A0001 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				EA26A55184CA47CAB6BE66F7 /* CollageBrowserView.swift */,
 				14646BA6B29444FB967840F3 /* CollageCanvasView.swift */,
 				AA0001001A000001001A0002 /* SnapshotCollageView.swift */,
 			);
@@ -310,6 +313,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				518EDF5F489C4F4B886360B0 /* CollageBrowserView.swift in Sources */,
 				69B9B4E2ABEC4C999BCDC786 /* CollageCanvasView.swift in Sources */,
 				1716E13EC6B244C89A2ECB30 /* CollageBrowserModel.swift in Sources */,
 				08232440E26C4AAEA9E6A17E /* EverydayObjectFeed.swift in Sources */,
