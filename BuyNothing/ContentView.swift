@@ -25,7 +25,7 @@ struct ContentView: View {
                     Button {
                         showingSnapshot = true
                     } label: {
-                        Image(systemName: "square.and.arrow.up")
+                        Image(systemName: "camera.fill")
                             .font(.title3)
                             .foregroundStyle(.secondary)
                     }

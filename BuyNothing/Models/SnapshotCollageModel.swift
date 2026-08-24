@@ -41,6 +41,10 @@ final class SnapshotCollageModel: ObservableObject {
     /// True while sourced items are still streaming in (the collage is growing live)
     @Published private(set) var isStreaming: Bool = false
 
+    /// True when the collage is filled with fallback everyday objects (identification
+    /// unavailable) rather than items similar to the user's.
+    @Published private(set) var isPreviewMode: Bool = false
+
     /// How many sourced items have been packed in so far
     @Published private(set) var sourcedCount: Int = 0
 
@@ -63,6 +67,7 @@ final class SnapshotCollageModel: ObservableObject {
         streamTask?.cancel()
         streamTask = nil
         isStreaming = false
+        isPreviewMode = false
         sourcedCount = 0
     }
 
@@ -82,6 +87,7 @@ final class SnapshotCollageModel: ObservableObject {
         streamTask?.cancel()
         streamTask = nil
         isStreaming = false
+        isPreviewMode = false
         sourcedCount = 0
     }
 
@@ -163,11 +169,14 @@ final class SnapshotCollageModel: ObservableObject {
                 identification = idResult
                 onMessageUpdate("Identified: \"\(idResult.name)\"")
             } catch {
-                onError("Identification failed: \(error)")
+                onMessageUpdate("Identification unavailable: \(error.localizedDescription)")
             }
 
-            // 3️⃣ Pack + show the user's item immediately, then stream similar items in as
-            // each one finishes downloading + segmenting (completion order).
+            // 3️⃣ Pack + show the user's item immediately, then stream in items to pack
+            // alongside it as each one finishes downloading + segmenting (completion order).
+            // When identification gave us a query, search for that item type; otherwise
+            // fall back to everyday objects so the preview collage always shows how the
+            // user's item packs in next to items other users would post.
             onMessageUpdate("Packing your item...")
             userAlignedItem = aligned
             collageItems = [aligned]
@@ -177,34 +186,89 @@ final class SnapshotCollageModel: ObservableObject {
             showResult = true
             isStreaming = true
             sourcedCount = 0
+            pipelineError = nil
 
-            if let query = identification?.searchQuery {
-                onMessageUpdate("Streaming similar items in...")
-                streamTask = Task {
-                    do {
-                        let stream = SimilarImageSearch.fetchSegmentedStreaming(query: query, maxImages: 10)
-                        for try await image in stream {
-                            self.collageItems.append(image)
-                            self.sourcedCount += 1
-                            self.onMessageUpdate("Packed item \(self.sourcedCount)")
-                            self.repackAndRender()
+            let plan = Self.previewPlan(for: identification)
+            isPreviewMode = plan.previewMode
+            onMessageUpdate(plan.previewMode
+                ? "Packing sample everyday objects alongside yours..."
+                : "Streaming similar items in...")
+            streamTask = Task {
+                await withTaskGroup(of: Void.self) { group in
+                    for query in plan.queries {
+                        group.addTask {
+                            do {
+                                let stream = SimilarImageSearch.fetchSegmentedStreaming(query: query, maxImages: plan.perQuery)
+                                for try await image in stream {
+                                    guard await self.packNextSourcedItem(image) else { break }
+                                }
+                            } catch {
+                                // A failed query just means fewer items; the partial collage is fine.
+                            }
                         }
-                        self.onMessageUpdate("Done! You have \(self.collageItems.count) item(s).")
-                    } catch {
-                        self.onError("Stream stopped: \(error.localizedDescription)")
                     }
-                    self.isStreaming = false
                 }
-            } else {
-                // No identification available: user-only collage, nothing to stream
-                isStreaming = false
-                onMessageUpdate("Done! Showing just your item (identification unavailable).")
+                await self.finishStreaming()
             }
         } catch {
             onError("Processing failed: \(error)")
             isAlerting = true
         }
         isProcessing = false
+    }
+
+    /// Everyday objects used to fill the preview collage when identification is
+    /// unavailable, so it still shows how the user's item packs alongside items
+    /// other users would post.
+    nonisolated static let fallbackPreviewQueries = [
+        "ceramic mug", "sneakers", "backpack", "potted houseplant", "wireless headphones", "notebook",
+    ]
+
+    /// Cap on sourced items in the preview collage (the user's own item is extra).
+    nonisolated static let maxSourcedItems = 8
+
+    struct PreviewPlan {
+        let queries: [String]
+        let perQuery: Int
+        let previewMode: Bool
+    }
+
+    /// Chooses the search queries for the preview collage: the identified item type when
+    /// available, otherwise a spread of everyday objects.
+    nonisolated static func previewPlan(for identification: ItemIdentifier.Identification?) -> PreviewPlan {
+        if let query = identification?.searchQuery, !query.trimmingCharacters(in: .whitespaces).isEmpty {
+            return PreviewPlan(queries: [query], perQuery: maxSourcedItems, previewMode: false)
+        }
+        return PreviewPlan(queries: fallbackPreviewQueries, perQuery: 2, previewMode: true)
+    }
+
+    /// Packs one more sourced item into the collage (main actor). Returns false once the
+    /// collage is full so callers stop pulling from their stream.
+    @discardableResult
+    private func packNextSourcedItem(_ image: CGImage) -> Bool {
+        guard sourcedCount < Self.maxSourcedItems else { return false }
+        collageItems.append(image)
+        sourcedCount += 1
+        onMessageUpdate("Packed item \(sourcedCount)")
+        repackAndRender()
+        return true
+    }
+
+    private func finishStreaming() {
+        isStreaming = false
+        onMessageUpdate("Done! You have \(collageItems.count) item(s).")
+    }
+
+    /// Caption for the "found N items" line, aware of preview mode.
+    func itemsCaption(streaming: Bool) -> String {
+        if isPreviewMode {
+            return streaming
+                ? "\(sourcedCount) sample item(s) packed alongside yours — more streaming in…"
+                : "\(sourcedCount) everyday item(s) packed alongside yours (sample preview)"
+        }
+        return streaming
+            ? "Found \(sourcedCount) similar items — more streaming in…"
+            : "Found \(sourcedCount) similar items"
     }
 
     /// Packs the current collage items and re-renders the collage image. Cheap enough to

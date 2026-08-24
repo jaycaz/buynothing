@@ -170,12 +170,12 @@ struct SnapshotCollageView: View {
                         HStack(spacing: 8) {
                             ProgressView()
                                 .controlSize(.small)
-                            Text("Found \(model.sourcedCount) similar items — more streaming in…")
+                            Text(model.itemsCaption(streaming: true))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     } else {
-                        Text("Found \(model.sourcedCount) similar items")
+                        Text(model.itemsCaption(streaming: false))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
