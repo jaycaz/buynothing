@@ -33,6 +33,7 @@
 		270FF74038484AE7A898C9AF /* EverydayObjectQueries.swift in Sources */ = {isa = PBXBuildFile; fileRef = 351E5AC8C9B94EB48E781268 /* EverydayObjectQueries.swift */; };
 		EF8C8730F06C4EBBB50BDBBB /* CollageScatterPacker.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCEA9E4D12204C09AB14B426 /* CollageScatterPacker.swift */; };
 		08232440E26C4AAEA9E6A17E /* EverydayObjectFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0658F48D93F442748F12C0FA /* EverydayObjectFeed.swift */; };
+		1716E13EC6B244C89A2ECB30 /* CollageBrowserModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF5C96D29F24A2BAF359ACA /* CollageBrowserModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,6 +76,7 @@
 		351E5AC8C9B94EB48E781268 /* EverydayObjectQueries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EverydayObjectQueries.swift; sourceTree = "<group>"; };
 		BCEA9E4D12204C09AB14B426 /* CollageScatterPacker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollageScatterPacker.swift; sourceTree = "<group>"; };
 		0658F48D93F442748F12C0FA /* EverydayObjectFeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EverydayObjectFeed.swift; sourceTree = "<group>"; };
+		9AF5C96D29F24A2BAF359ACA /* CollageBrowserModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollageBrowserModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -171,6 +173,7 @@
 		BB000A001A000001001A0001 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				9AF5C96D29F24A2BAF359ACA /* CollageBrowserModel.swift */,
 				BB0001001A000001001A0001 /* Item.swift */,
 				BB0003001A000001001A0001 /* User.swift */,
 				BB0005001A000001001A0001 /* Nudge.swift */,
@@ -304,6 +307,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1716E13EC6B244C89A2ECB30 /* CollageBrowserModel.swift in Sources */,
 				08232440E26C4AAEA9E6A17E /* EverydayObjectFeed.swift in Sources */,
 				EF8C8730F06C4EBBB50BDBBB /* CollageScatterPacker.swift in Sources */,
 				270FF74038484AE7A898C9AF /* EverydayObjectQueries.swift in Sources */,
