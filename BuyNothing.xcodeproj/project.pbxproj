@@ -29,6 +29,7 @@
 		CD7A8905F65BB2158EBB85E2 /* SyntheticToolImageGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0092C0CB42EEF8BE31D29DAA /* SyntheticToolImageGenerator.swift */; };
 		DB566D337C6F23DA9026D2DC /* ObjectOrientationAligner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CBF6B66D92F68F09C867D85 /* ObjectOrientationAligner.swift */; };
 		F459682324421EC473376370 /* DebugGroundTruthSegmenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFE3F4F9C44D7E40CC7E4993 /* DebugGroundTruthSegmenter.swift */; };
+		6E2C34921D6141C2B7E8A4A5 /* CollageLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 342CF9B8C7CA43789BDD2861 /* CollageLayout.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,6 +68,7 @@
 		D80D34236CBEAF5D27F230E8 /* CollageJustifiedPacker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollageJustifiedPacker.swift; sourceTree = "<group>"; };
 		DB88E5A21C990226C4367841 /* ImageGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageGeometry.swift; sourceTree = "<group>"; };
 		F4CB5253EF9205D3E6D04FBB /* CollageDemoModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollageDemoModel.swift; sourceTree = "<group>"; };
+		342CF9B8C7CA43789BDD2861 /* CollageLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollageLayout.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -175,6 +177,7 @@
 		FB76A966DD2D89A5ADAD2461 /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				342CF9B8C7CA43789BDD2861 /* CollageLayout.swift */,
 				0092C0CB42EEF8BE31D29DAA /* SyntheticToolImageGenerator.swift */,
 				01E68B8F3075B2E7EA251F74 /* ForegroundSegmenter.swift */,
 				5CBF6B66D92F68F09C867D85 /* ObjectOrientationAligner.swift */,
@@ -288,17 +291,11 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		170F0DEA303BB4DE001A0D79 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		B40000F81A000001001A0001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6E2C34921D6141C2B7E8A4A5 /* CollageLayout.swift in Sources */,
 				B40001021A000001001A0001 /* ContentView.swift in Sources */,
 				B40001001A000001001A0001 /* BuyNothingApp.swift in Sources */,
 				BB0002001A000001001A0001 /* Item.swift in Sources */,
@@ -319,6 +316,13 @@
 				AA0004001A000001001A0001 /* SimilarImageSearch.swift in Sources */,
 				AA0005001A000001001A0001 /* Secrets.swift in Sources */,
 				AA0007001A000001001A0001 /* CapturedPhotoNormalizer.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		170F0DEA303BB4DE001A0D79 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

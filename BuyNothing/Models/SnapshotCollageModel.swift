@@ -282,7 +282,7 @@ final class SnapshotCollageModel: ObservableObject {
 
     /// Renders a collage from aligned images using the justified packer layout.
     /// (Internal so the DEBUG dump hook in BuyNothingApp.swift can reuse it.)
-    nonisolated static func renderCollage(images: [CGImage], layout: CollageJustifiedPacker.Layout) -> UIImage {
+    nonisolated static func renderCollage(images: [CGImage], layout: CollageLayout) -> UIImage {
         let format = UIGraphicsImageRendererFormat()
         format.opaque = true
         format.scale = 1

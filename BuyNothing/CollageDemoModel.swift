@@ -94,7 +94,7 @@ final class CollageDemoModel: ObservableObject {
         return output
     }
 
-    nonisolated private static func renderCollage(images: [CGImage], layout: CollageJustifiedPacker.Layout) -> UIImage {
+    nonisolated private static func renderCollage(images: [CGImage], layout: CollageLayout) -> UIImage {
         let format = UIGraphicsImageRendererFormat()
         format.opaque = true
         format.scale = 1

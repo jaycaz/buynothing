@@ -9,26 +9,16 @@ import CoreGraphics
 /// item's aspect ratio varies.
 enum CollageJustifiedPacker {
 
-    struct Placement {
-        let index: Int
-        let rect: CGRect
-    }
-
-    struct Layout {
-        let placements: [Placement]
-        let canvasSize: CGSize
-    }
-
     static func pack(
         itemSizes: [CGSize],
         canvasWidth: CGFloat,
         targetRowHeight: CGFloat,
         spacing: CGFloat = 6,
         maxRowHeightScale: CGFloat = 1.35
-    ) -> Layout {
-        guard !itemSizes.isEmpty else { return Layout(placements: [], canvasSize: .zero) }
+    ) -> CollageLayout {
+        guard !itemSizes.isEmpty else { return CollageLayout(placements: [], canvasSize: .zero) }
 
-        var placements: [Placement] = []
+        var placements: [CollagePlacement] = []
         var y: CGFloat = 0
         var rowStartIndex = 0
         var rowWidths: [CGFloat] = []
@@ -50,7 +40,7 @@ enum CollageJustifiedPacker {
             var x: CGFloat = 0
             for i in rowStartIndex..<endIndex {
                 let scaledWidth = rowWidths[i - rowStartIndex] * scale
-                placements.append(Placement(index: i, rect: CGRect(x: x, y: y, width: scaledWidth, height: rowHeight)))
+                placements.append(CollagePlacement(index: i, rect: CGRect(x: x, y: y, width: scaledWidth, height: rowHeight)))
                 x += scaledWidth + spacing
             }
             y += rowHeight + spacing
@@ -77,6 +67,6 @@ enum CollageJustifiedPacker {
         }
 
         let canvasHeight = max(0, y - spacing)
-        return Layout(placements: placements, canvasSize: CGSize(width: canvasWidth, height: canvasHeight))
+        return CollageLayout(placements: placements, canvasSize: CGSize(width: canvasWidth, height: canvasHeight))
     }
 }
