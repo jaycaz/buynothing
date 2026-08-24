@@ -3,40 +3,84 @@ import SwiftUI
 struct ContentView: View {
     let neighbors = MockData.neighbors
     let nudges = MockData.sampleNudges
+    @StateObject private var browserModel = CollageBrowserModel()
     #if DEBUG
     @State private var showingCollageDemo = false
-    @State private var showingSnapshot = false
     #endif
 
     var body: some View {
+        VStack(spacing: 0) {
+            header
+
+            Group {
+                if #available(iOS 18.0, *) {
+                    CollageBrowserView(model: browserModel)
+                } else {
+                    legacyCommonsScrollView
+                }
+            }
+        }
+        .background(Color(.systemGroupedBackground))
+        #if DEBUG
+        .sheet(isPresented: $showingCollageDemo) {
+            CollageDemoView()
+        }
+        .sheet(isPresented: $browserModel.isPresentingCamera) {
+            CameraCaptureView { photo in
+                browserModel.isPresentingCamera = false
+                if let cgImage = photo.cgImage {
+                    browserModel.insertCapturedItem(cgImage)
+                }
+            }
+        }
+        .sheet(isPresented: $browserModel.isPresentingDebugConfig) {
+            CollageDebugConfigView(model: browserModel)
+        }
+        #endif
+    }
+
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("BuyNothing")
+                    .font(.largeTitle.bold())
+                Text("Your neighborhood commons")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            #if DEBUG
+            HStack(spacing: 16) {
+                Button {
+                    browserModel.isPresentingCamera = true
+                } label: {
+                    Image(systemName: "camera.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityLabel("Add your own object")
+
+                Button {
+                    browserModel.isPresentingDebugConfig = true
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityLabel("Collage debug controls")
+            }
+            .padding(.top, 4)
+            #endif
+        }
+        .padding(.horizontal)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
+    }
+
+    @ViewBuilder
+    private var legacyCommonsScrollView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                // Header
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("BuyNothing")
-                            .font(.largeTitle.bold())
-                        Text("Your neighborhood commons")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    #if DEBUG
-                    Button {
-                        showingSnapshot = true
-                    } label: {
-                        Image(systemName: "camera.fill")
-                            .font(.title3)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.top, 4)
-                    .accessibilityLabel("One-shot collage prototype")
-                    #endif
-                }
-                .padding(.horizontal)
-                .padding(.top, 20)
-
-                // Nudges section
                 if !nudges.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         SectionHeader(title: "Nudges", icon: "sparkles")
@@ -47,7 +91,6 @@ struct ContentView: View {
                     .padding(.horizontal)
                 }
 
-                // Neighbors section
                 VStack(alignment: .leading, spacing: 16) {
                     SectionHeader(title: "Neighbors", icon: "person.2")
                         .padding(.horizontal)
@@ -59,16 +102,8 @@ struct ContentView: View {
 
                 Spacer(minLength: 32)
             }
+            .padding(.bottom, 20)
         }
-        .background(Color(.systemGroupedBackground))
-        #if DEBUG
-        .sheet(isPresented: $showingCollageDemo) {
-            CollageDemoView()
-        }
-        .sheet(isPresented: $showingSnapshot) {
-            SnapshotCollageView()
-        }
-        #endif
     }
 }
 
@@ -121,7 +156,6 @@ struct NeighborCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Name + neighborhood
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(neighbor.name)
@@ -140,7 +174,6 @@ struct NeighborCard: View {
                     .clipShape(Capsule())
             }
 
-            // Tossed items
             if !neighbor.tossedItems.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Sharing")
@@ -162,7 +195,6 @@ struct NeighborCard: View {
                 }
             }
 
-            // Wishes
             if !neighbor.wishes.isEmpty {
                 Divider()
                 VStack(alignment: .leading, spacing: 6) {
