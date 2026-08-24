@@ -36,6 +36,7 @@
 		1716E13EC6B244C89A2ECB30 /* CollageBrowserModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF5C96D29F24A2BAF359ACA /* CollageBrowserModel.swift */; };
 		69B9B4E2ABEC4C999BCDC786 /* CollageCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14646BA6B29444FB967840F3 /* CollageCanvasView.swift */; };
 		518EDF5F489C4F4B886360B0 /* CollageBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA26A55184CA47CAB6BE66F7 /* CollageBrowserView.swift */; };
+		D0B9911627C444C18A071676 /* CollageDebugConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0667FA16CE14BD89AA61AA8 /* CollageDebugConfigView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -81,6 +82,7 @@
 		9AF5C96D29F24A2BAF359ACA /* CollageBrowserModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollageBrowserModel.swift; sourceTree = "<group>"; };
 		14646BA6B29444FB967840F3 /* CollageCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollageCanvasView.swift; sourceTree = "<group>"; };
 		EA26A55184CA47CAB6BE66F7 /* CollageBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollageBrowserView.swift; sourceTree = "<group>"; };
+		C0667FA16CE14BD89AA61AA8 /* CollageDebugConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollageDebugConfigView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -108,6 +110,7 @@
 		AA0010001A000001001A0001 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				C0667FA16CE14BD89AA61AA8 /* CollageDebugConfigView.swift */,
 				EA26A55184CA47CAB6BE66F7 /* CollageBrowserView.swift */,
 				14646BA6B29444FB967840F3 /* CollageCanvasView.swift */,
 				AA0001001A000001001A0002 /* SnapshotCollageView.swift */,
@@ -313,6 +316,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D0B9911627C444C18A071676 /* CollageDebugConfigView.swift in Sources */,
 				518EDF5F489C4F4B886360B0 /* CollageBrowserView.swift in Sources */,
 				69B9B4E2ABEC4C999BCDC786 /* CollageCanvasView.swift in Sources */,
 				1716E13EC6B244C89A2ECB30 /* CollageBrowserModel.swift in Sources */,
