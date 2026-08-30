@@ -112,3 +112,9 @@ build-sim/
 
 # Harness output (regenerable: `swift run pipeline-cli --compare` in Pipeline/)
 harness-output/
+
+# benchmark artifacts & test data (kept out of git; synced to iCloud)
+testset/
+out/
+models/
+tools/segsuite/segsuite
