@@ -112,3 +112,6 @@ build-sim/
 
 # Harness output (regenerable: `swift run pipeline-cli --compare` in Pipeline/)
 harness-output/
+
+# benchmark artifacts
+out/

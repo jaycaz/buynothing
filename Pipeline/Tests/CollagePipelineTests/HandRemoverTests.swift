@@ -37,18 +37,14 @@ enum HandRemoverTestImages {
 @Suite("HandRemover real photos")
 struct HandRemoverPhotoTests {
 
-    /// KNOWN EDGE CASE (documented, not fixed): these USB-cable photos produce an empty
-    /// cutout — HandRemover throws `maskRenderFailed` or returns an image with no opaque
-    /// pixels. Likely cause: the Vision subject-lift locks onto the holding hand and the
-    /// blue/red+texture pixel resolve then drops everything, so the final mask is empty
-    /// and `cropToMask` finds no content. The Python `composite` reference captures these
-    /// better (it has a SAM product-part step the Swift port omits). Follow-up: investigate
-    /// and fix the under-capture for non-blue/red objects.
-    static let knownEmptyCutout = ["usbcable_07", "usbcable_11"]
+    /// (Historical note: usbcable_07/11 were "known empty cutout" edge cases; that was
+    /// the compositeWithAlpha vertical-flip bug — the crop grabbed the mirrored, empty
+    /// region. Fixed 2026-08-30: both now segment normally (86% / 42% opaque) and are
+    /// covered by the invariants below.)
 
-    @Test("10 real photos segment without throwing and keep sane invariants")
+    @Test("12 real photos segment without throwing and keep sane invariants")
     func realPhotoInvariants() throws {
-        for name in HandRemoverTestImages.names where !Self.knownEmptyCutout.contains(name) {
+        for name in HandRemoverTestImages.names {
             let input = HandRemoverTestImages.load(name)
             let result = try HandRemover.segment(from: input)
 
@@ -62,22 +58,6 @@ struct HandRemoverPhotoTests {
         }
     }
 
-    /// Pins today's known-failure behavior for the two empty-cutout cables: each image must
-    /// either throw or return a cutout with <2% opaque pixels (i.e. it must NOT start
-    /// returning a bogus full-frame cutout either). Revisit once the under-capture is fixed.
-    @Test("known edge case: usbcable_07/11 throw or return an empty cutout")
-    func knownEmptyCutoutEdgeCase() {
-        for name in Self.knownEmptyCutout {
-            let input = HandRemoverTestImages.load(name)
-            do {
-                let result = try HandRemover.segment(from: input)
-                let frac = HandRemoverTestImages.opaqueFraction(result.image)
-                #expect(frac < 0.02, "\(name): expected empty cutout, got opaque fraction \(frac)")
-            } catch {
-                #expect(true, "\(name): throws as expected (\(error))")
-            }
-        }
-    }
 }
 
 @Suite("HandRemover helpers")
@@ -146,6 +126,23 @@ struct HandRemoverHelperTests {
         let field = [UInt8](repeating: 200, count: w * h)
         let out = HandRemover.gaussianBlur1(field, width: w, height: h)
         #expect(out.allSatisfy { (198...202).contains($0) }, "feather must not fade constant regions")
+    }
+
+    @Test("compositeWithAlpha + cropToMask preserve top-down orientation (no vertical flip)")
+    func orientationPreserved() {
+        let w = 60, h = 120
+        var alpha = [UInt8](repeating: 0, count: w * h)
+        for y in 10..<50 { for x in 10..<50 { alpha[y * w + x] = 255 } } // content in TOP half
+        var rgba = [UInt8](repeating: 200, count: w * h * 4)
+        guard let comp = HandRemover.compositeWithAlpha(rgba: rgba, alpha: alpha, width: w, height: h),
+              let cropped = HandRemover.cropToMask(comp, alpha: alpha, width: w, height: h) else {
+            Issue.record("could not composite/crop")
+            return
+        }
+        #expect(cropped.width == 40, "cropped width \(String(describing: cropped.width)) != 40")
+        #expect(cropped.height == 40, "cropped height \(String(describing: cropped.height)) != 40")
+        let frac = HandRemoverTestImages.opaqueFraction(cropped)
+        #expect(frac > 0.9, "content must survive the crop (got \(frac)); a vertical flip in compositeWithAlpha would make this crop transparent")
     }
 
     @Test("cropToMask returns the tight bounding box of the alpha")

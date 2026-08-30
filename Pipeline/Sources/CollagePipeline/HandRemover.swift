@@ -25,23 +25,35 @@ public enum HandRemover {
 
     // MARK: - Tunables (kept in sync with scripts/composite.py)
 
-    private enum Tuning {
-        static let skinRBGap: Float = 0.18   // (r-b) threshold for confident skin
-        static let skinValMin: Float = 0.25
-        static let blueSatMin: Float = 0.15
-        static let blueBMin: Float = 0.25
-        static let redSatMin: Float = 0.25
-        static let redRGBap: Float = 0.15
-        static let textureRadius = 10         // 21px uniform window
-        static let textureThreshold: Float = 12
-        static let closingIterations = 3
-        static let openingIterations = 3   // removes thin stray wires/arcs (<=6px)
-        static let minComponentPixels = 1000
-        static let minFillRatio: Float = 0.10  // area/bbox-area; kills thin spiky wires
+    /// All tunables for `segment`, with the shipped defaults. Exposed so the
+    /// benchmark harness can sweep parameter grids without recompiling per config.
+    public struct Params {
+        public var skinRBGap: Float = 0.18   // (r-b) threshold for confident skin
+        public var skinValMin: Float = 0.25
+        public var blueSatMin: Float = 0.15
+        public var blueBMin: Float = 0.25
+        public var redSatMin: Float = 0.25
+        public var redRGBap: Float = 0.15
+        public var textureRadius = 10         // 21px uniform window
+        public var textureThreshold: Float = 12
+        public var closingIterations = 3
+        public var openingIterations = 3   // removes thin stray wires/arcs (<=6px)
+        public var minComponentPixels = 1000
+        public var rescueMinComponentPixels = 500  // sweep 2026-08-30: retry bound used only
+                                                  // when the default bound drops the WHOLE
+                                                  // object (recovers tools_05 to 10.8% opaque;
+                                                  // see out/sweep/SWEEP_SUMMARY.md)
+        public var minFillRatio: Float = 0.10  // area/bbox-area; kills thin spiky wires
+        public init() {}
     }
 
     /// Cut out the product, removing the holding hand.
     public static func segment(from cgImage: CGImage) throws -> Result {
+        try segment(from: cgImage, params: Params())
+    }
+
+    /// Cut out the product with an explicit parameter set (defaults = shipped behavior).
+    public static func segment(from cgImage: CGImage, params p: Params) throws -> Result {
         // 1) region prior from Vision
         let region = try ForegroundSegmenter.segment(from: cgImage).fullMask
         let w = cgImage.width
@@ -69,11 +81,11 @@ public enum HandRemover {
             guard mx > 0 else { continue }
             let sat = (mx - mn) / mx
 
-            let confidentSkin = (r - b > Tuning.skinRBGap) && r > g && mx > Tuning.skinValMin
+            let confidentSkin = (r - b > p.skinRBGap) && r > g && mx > p.skinValMin
             guard !confidentSkin else { continue }
 
-            let blue = b > r * 1.15 && b > Tuning.blueBMin && sat > Tuning.blueSatMin
-            let red = r > g * 1.5 && r > b * 1.3 && sat > Tuning.redSatMin && r - g > Tuning.redRGBap
+            let blue = b > r * 1.15 && b > p.blueBMin && sat > p.blueSatMin
+            let red = r > g * 1.5 && r > b * 1.3 && sat > p.redSatMin && r - g > p.redRGBap
             guard blue || red else { continue }
             keep[i] = true
         }
@@ -84,23 +96,33 @@ public enum HandRemover {
             lum[i] = (Float(rgba[4 * i]) + Float(rgba[4 * i + 1]) + Float(rgba[4 * i + 2])) * (1.0 / 3.0)
         }
         let mag = sobelMagnitude(lum, width: w, height: h)
-        let tex = boxFilter(mag, width: w, height: h, radius: Tuning.textureRadius)
+        let tex = boxFilter(mag, width: w, height: h, radius: p.textureRadius)
 
         for i in 0..<n {
-            if regionBytes[i] > 127 && !keep[i] && tex[i] > Tuning.textureThreshold {
+            if regionBytes[i] > 127 && !keep[i] && tex[i] > p.textureThreshold {
                 let r = Float(rgba[4 * i]) / 255
                 let g = Float(rgba[4 * i + 1]) / 255
                 let b = Float(rgba[4 * i + 2]) / 255
                 let mx = max(r, max(g, b))
-                let confidentSkin = (r - b > Tuning.skinRBGap) && r > g && mx > Tuning.skinValMin
+                let confidentSkin = (r - b > p.skinRBGap) && r > g && mx > p.skinValMin
                 if !confidentSkin { keep[i] = true }
             }
         }
 
         // 5) cleanup: connect parts, kill thin wires, drop small blobs, fill holes
-        keep = close(keep, width: w, height: h, iterations: Tuning.closingIterations)
-        keep = open(keep, width: w, height: h, iterations: Tuning.openingIterations)
-        keep = removeSmallComponents(keep, width: w, height: h, minSize: Tuning.minComponentPixels)
+        keep = close(keep, width: w, height: h, iterations: p.closingIterations)
+        keep = open(keep, width: w, height: h, iterations: p.openingIterations)
+        var cleaned = removeSmallComponents(keep, width: w, height: h, minSize: p.minComponentPixels,
+                                            minFillRatio: p.minFillRatio)
+        // Two-stage rescue: if the min-size bound dropped the ENTIRE object (Vision locked
+        // onto the hand and the product ended up as small fragments), retry once with the
+        // looser bound. No effect on any non-empty result.
+        if !cleaned.contains(where: { $0 }) && p.rescueMinComponentPixels < p.minComponentPixels {
+            cleaned = removeSmallComponents(keep, width: w, height: h,
+                                            minSize: p.rescueMinComponentPixels,
+                                            minFillRatio: p.minFillRatio)
+        }
+        keep = cleaned
         keep = fillHoles(keep, width: w, height: h)
 
         // 6) feather (1px gaussian, separable)
@@ -117,8 +139,9 @@ public enum HandRemover {
         guard let composited = compositeWithAlpha(rgba: rgba, alpha: alpha, width: w, height: h) else {
             throw HandRemoverError.maskRenderFailed
         }
-        // Crop to the tight bounding box. My CGImages are top-down (row 0 = top) and
-        // CGImage.cropping uses top-left origin, so I crop with a top-down rect directly.
+        // Crop to the tight bounding box. The composited CGImage is now correctly
+        // oriented (buffer row 0 = top) and CGImage.cropping(to:) selects rows in memory
+        // order with a top-left origin, so the top-down alpha bbox crops the right region.
         // (ForegroundSegmenter.tightCutout assumes the bottom-up Vision-mask convention and
         // would vertically flip a top-down image.)
         guard let cropped = cropToMask(composited, alpha: alpha, width: w, height: h) else {
@@ -129,7 +152,14 @@ public enum HandRemover {
 
     // MARK: - Pixel access
 
-    /// Row-major, top-to-bottom RGBA8888 (premultiplied — source photos are opaque, so identical).
+    /// Row-major, top-to-bottom RGBA8888 (premultiplied — source photos are opaque, so
+    /// identical). Empirical CG convention (verified with a two-row red/blue probe):
+    /// drawing a CGImage into a context with the IDENTITY transform puts image data
+    /// row 0 in context memory row 0. So NO flip transform is needed — the context
+    /// flip that was here previously (translate/scale) made the array bottom-up while
+    /// every consumer (cropToMask, makeMaskImage, compositeWithAlpha) assumed top-down,
+    /// which flipped the final cutout and made off-center crops grab an empty region
+    /// (e.g. tools_05 came out fully transparent).
     private static func topDownRGBA(from cgImage: CGImage) -> [UInt8]? {
         let w = cgImage.width
         let h = cgImage.height
@@ -144,8 +174,6 @@ public enum HandRemover {
             space: CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else { return nil }
-        context.translateBy(x: 0, y: CGFloat(h))
-        context.scaleBy(x: 1, y: -1)
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: w, height: h))
         return buffer
     }
@@ -157,10 +185,12 @@ public enum HandRemover {
     /// Vision subject-lift mask (DeviceRGB, 32bpp, noneSkipLast).
     private static func makeMaskImage(mask: [UInt8], width: Int, height: Int) -> CGImage? {
         guard mask.count == width * height else { return nil }
-        // Bottom-up buffer (row 0 = bottom) so the CGImage is oriented correctly.
+        // A CGImage built from a raw buffer has buffer row 0 = TOP of the image (verified
+        // empirically with a two-row red/blue probe), so the top-down mask array copies
+        // straight through. The earlier "bottom-up" flip vertically mirrored the mask.
         var rgba = [UInt8](repeating: 0, count: width * height * 4)
         for y in 0..<height {
-            let srcRow = (height - 1 - y) * width
+            let srcRow = y * width
             let dstRow = y * width
             for x in 0..<width {
                 let v = mask[srcRow + x]
@@ -209,14 +239,19 @@ public enum HandRemover {
     }
 
     /// Build a premultipliedLast RGBA CGImage: color from `rgba`, alpha from `alpha`.
-    private static func compositeWithAlpha(rgba: [UInt8], alpha: [UInt8], width: Int, height: Int) -> CGImage? {
+    /// Both inputs are row-major, top-to-bottom (row 0 = top); the result is oriented
+    /// the same way (buffer row 0 = top of the CGImage).
+    internal static func compositeWithAlpha(rgba: [UInt8], alpha: [UInt8], width: Int, height: Int) -> CGImage? {
         let n = width * height
         guard rgba.count == n * 4, alpha.count == n else { return nil }
-        // A CGImage built from a raw buffer treats row 0 of the buffer as the BOTTOM of the
-        // image, so we emit a bottom-up buffer: buffer row y <- top-down row (height-1-y).
+        // A CGImage built from a raw buffer has buffer row 0 = TOP of the image (verified
+        // empirically), so the top-down rgba/alpha arrays copy straight through — no flip.
+        // The earlier "bottom-up" flip produced a vertically mirrored cutout; it only
+        // looked right for near-center-symmetric objects, and for off-center objects the
+        // crop grabbed an empty region -> fully transparent output (e.g. tools_05).
         var out = [UInt8](repeating: 0, count: n * 4)
         for y in 0..<height {
-            let srcRow = (height - 1 - y) * width
+            let srcRow = y * width
             let dstRow = y * width
             for x in 0..<width {
                 let si = srcRow + x
@@ -357,8 +392,10 @@ public enum HandRemover {
         return cur
     }
 
-    /// Drop 8-connected components smaller than `minSize` pixels.
-    internal static func removeSmallComponents(_ m: [Bool], width: Int, height: Int, minSize: Int) -> [Bool] {
+    /// Drop 8-connected components smaller than `minSize` pixels (or with a
+    /// bounding-box fill ratio below `minFillRatio` — thin spiky wires).
+    internal static func removeSmallComponents(_ m: [Bool], width: Int, height: Int, minSize: Int,
+                                               minFillRatio: Float = 0.10) -> [Bool] {
         var out = m
         var visited = [Bool](repeating: false, count: m.count)
         var stack = [Int]()
@@ -396,7 +433,7 @@ public enum HandRemover {
             }
             let bboxArea = (maxX - minX + 1) * (maxY - minY + 1)
             let fill = Float(area) / Float(max(1, bboxArea))
-            if area < minSize || fill < Tuning.minFillRatio {
+            if area < minSize || fill < minFillRatio {
                 for i in component { out[i] = false }
             }
         }

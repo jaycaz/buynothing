@@ -32,6 +32,9 @@ struct Args {
     var showHelp = false
     var handremoverInput: String? = nil
     var handremoverOutput: String? = nil
+    var handremoverSweep = false
+    var sweepParams: String? = nil
+    var sweepOutdir: String? = nil
 }
 
 func usage() -> String {
@@ -74,6 +77,9 @@ func parseArgs(_ argv: [String]) -> Args {
         case "--compare": a.compare = true
         case "--handremover": if let v = next() { a.handremoverInput = v }
         case "--handremover-out": if let v = next() { a.handremoverOutput = v }
+        case "--handremover-sweep": if let v = next() { a.handremoverInput = v; a.handremoverSweep = true }
+        case "--sweep-params": if let v = next() { a.sweepParams = v }
+        case "--sweep-outdir": if let v = next() { a.sweepOutdir = v }
         case "--count": if let v = next().flatMap(Int.init) { a.count = v }
         case "--seed-base": if let v = next().flatMap(Int.init) { a.seedBase = v }
         case "--segmenter": if let v = next() { a.segmenter = v }
@@ -130,7 +136,11 @@ if args.showHelp {
 }
 
 if let input = args.handremoverInput {
-    runHandRemover(input: input, output: args.handremoverOutput)
+    if args.handremoverSweep {
+        runHandRemoverSweep(input: input, paramsJSON: args.sweepParams, outdir: args.sweepOutdir)
+    } else {
+        runHandRemover(input: input, output: args.handremoverOutput)
+    }
 }
 func runHandRemover(input: String, output: String?) {
     let inURL = URL(fileURLWithPath: (input as NSString).expandingTildeInPath)
@@ -156,6 +166,78 @@ func runHandRemover(input: String, output: String?) {
         FileHandle.standardError.write(Data("handremover error: \(error)\n".utf8))
         exit(1)
     }
+}
+
+// MARK: - handremover sweep
+
+func loadSweepParams(_ path: String) -> [HandRemover.Params] {
+    let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+    guard let data = try? Data(contentsOf: url),
+          let arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else {
+        FileHandle.standardError.write(Data("error: cannot parse sweep params JSON at \(path)\n".utf8))
+        exit(1)
+    }
+    return arr.map { obj in
+        var p = HandRemover.Params()
+        func f(_ k: String) -> Float? { (obj[k] as? Double).map(Float.init) ?? (obj[k] as? Float) }
+        func i(_ k: String) -> Int? { obj[k] as? Int }
+        if let v = f("skinRBGap") { p.skinRBGap = v }
+        if let v = f("skinValMin") { p.skinValMin = v }
+        if let v = f("blueSatMin") { p.blueSatMin = v }
+        if let v = f("blueBMin") { p.blueBMin = v }
+        if let v = f("redSatMin") { p.redSatMin = v }
+        if let v = f("redRGBap") { p.redRGBap = v }
+        if let v = i("textureRadius") { p.textureRadius = v }
+        if let v = f("textureThreshold") { p.textureThreshold = v }
+        if let v = i("closingIterations") { p.closingIterations = v }
+        if let v = i("openingIterations") { p.openingIterations = v }
+        if let v = i("minComponentPixels") { p.minComponentPixels = v }
+        if let v = f("minFillRatio") { p.minFillRatio = v }
+        return p
+    }
+}
+
+func jsonEscape(_ s: String) -> String {
+    var out = ""
+    for c in s.unicodeScalars where c != "\n" && c != "\r" {
+        if c == "\"" || c == "\\" { out.append("\\"); out.append(Character(c)) }
+        else if c.value >= 0x20 { out.append(Character(c)) }
+    }
+    return out
+}
+
+/// Run HandRemover over a JSON array of (partial) parameter sets; writes
+/// <stem>_c<i>.png (cutout) + <stem>_c<i>_mask.png (full-frame mask) per config
+/// and prints one JSON line per config: {"i":0,"ok":true,"ms":1234}
+func runHandRemoverSweep(input: String, paramsJSON: String?, outdir: String?) {
+    guard let pjson = paramsJSON else {
+        FileHandle.standardError.write(Data("error: --handremover-sweep requires --sweep-params <jsonfile>\n".utf8))
+        exit(1)
+    }
+    let params = loadSweepParams(pjson)
+    let inURL = URL(fileURLWithPath: (input as NSString).expandingTildeInPath)
+    guard let src = CGImageSourceCreateWithURL(inURL as CFURL, nil),
+          let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
+        FileHandle.standardError.write(Data("error: could not load \(input)\n".utf8))
+        exit(1)
+    }
+    let stem = inURL.deletingPathExtension().lastPathComponent
+    let dir = URL(fileURLWithPath: outdir ?? ".")
+    do { try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true) }
+    catch { FileHandle.standardError.write(Data("error: mkdir \(dir.path): \(error)\n".utf8)); exit(1) }
+    for (i, p) in params.enumerated() {
+        let t0 = Date()
+        do {
+            let result = try HandRemover.segment(from: cg, params: p)
+            let ms = Date().timeIntervalSince(t0) * 1000
+            try ImageIOHelpers.writePNG(result.image, to: dir.appendingPathComponent("\(stem)_c\(i).png"))
+            try ImageIOHelpers.writePNG(result.fullMask, to: dir.appendingPathComponent("\(stem)_c\(i)_mask.png"))
+            print("{\"i\":\(i),\"ok\":true,\"ms\":\(Int(ms))}")
+        } catch {
+            print("{\"i\":\(i),\"ok\":false,\"error\":\"\(jsonEscape(String(describing: error)))\"}")
+        }
+    }
+    exit(0)
 }
 
 let baseSegmenter: SegmenterChoice
