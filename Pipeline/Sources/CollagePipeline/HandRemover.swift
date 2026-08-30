@@ -192,7 +192,7 @@ public enum HandRemover {
 
     /// Crop a top-down RGBA CGImage to the bounding box of a top-down alpha mask,
     /// returning a new top-down CGImage (cropping with a top-left-origin rect).
-    private static func cropToMask(_ image: CGImage, alpha: [UInt8], width: Int, height: Int) -> CGImage? {
+    internal static func cropToMask(_ image: CGImage, alpha: [UInt8], width: Int, height: Int) -> CGImage? {
         var minX = width, maxX = -1, minY = height, maxY = -1
         for y in 0..<height {
             let row = y * width
@@ -246,7 +246,7 @@ public enum HandRemover {
     }
 
     /// Sobel gradient magnitude (float, ~0...2900) on a 0-255 luminance field.
-    private static func sobelMagnitude(_ l: [Float], width: Int, height: Int) -> [Float] {
+    internal static func sobelMagnitude(_ l: [Float], width: Int, height: Int) -> [Float] {
         var out = [Float](repeating: 0, count: l.count)
         func at(_ y: Int, _ x: Int) -> Float {
             let yy = min(max(y, 0), height - 1)
@@ -266,7 +266,7 @@ public enum HandRemover {
     }
 
     /// Separable uniform (box) filter with clamped borders.
-    private static func boxFilter(_ v: [Float], width: Int, height: Int, radius: Int) -> [Float] {
+    internal static func boxFilter(_ v: [Float], width: Int, height: Int, radius: Int) -> [Float] {
         let span = 2 * radius + 1
         let invSpan = 1.0 / Float(span)
         var hPass = [Float](repeating: 0, count: v.count)
@@ -349,7 +349,7 @@ public enum HandRemover {
     /// Morphological opening (erode → dilate), N iterations — removes thin/spiky
     /// foreground structures (stray wires, edges) thinner than ~2N px while preserving
     /// the solid body of the object.
-    private static func open(_ m: [Bool], width: Int, height: Int, iterations: Int) -> [Bool] {
+    internal static func open(_ m: [Bool], width: Int, height: Int, iterations: Int) -> [Bool] {
         var cur = m
         for _ in 0..<iterations {
             cur = dilate(erode(cur, width: width, height: height), width: width, height: height)
@@ -358,7 +358,7 @@ public enum HandRemover {
     }
 
     /// Drop 8-connected components smaller than `minSize` pixels.
-    private static func removeSmallComponents(_ m: [Bool], width: Int, height: Int, minSize: Int) -> [Bool] {
+    internal static func removeSmallComponents(_ m: [Bool], width: Int, height: Int, minSize: Int) -> [Bool] {
         var out = m
         var visited = [Bool](repeating: false, count: m.count)
         var stack = [Int]()
@@ -404,7 +404,7 @@ public enum HandRemover {
     }
 
     /// Fill background holes (background regions not connected to the border).
-    private static func fillHoles(_ m: [Bool], width: Int, height: Int) -> [Bool] {
+    internal static func fillHoles(_ m: [Bool], width: Int, height: Int) -> [Bool] {
         var out = m
         var visited = [Bool](repeating: false, count: m.count)
         var stack = [Int]()
@@ -444,9 +444,10 @@ public enum HandRemover {
         return out
     }
 
-    /// Separable ~1px gaussian (5-tap [0.208,0.607,1,0.607,0.208]/3.631) on 0-255 mask.
-    private static func gaussianBlur1(_ v: [UInt8], width: Int, height: Int) -> [UInt8] {
-        let k: [Float] = [0.0573, 0.1672, 0.2754, 0.1672, 0.0573] // normalized sigma≈1
+    /// Separable ~1px gaussian (5-tap [0.208,0.607,1,0.607,0.208]/2.630) on 0-255 mask.
+    /// The weights sum to 1.0, so constant regions are preserved (a "feather", not a fade).
+    internal static func gaussianBlur1(_ v: [UInt8], width: Int, height: Int) -> [UInt8] {
+        let k: [Float] = [0.0791, 0.2308, 0.3802, 0.2308, 0.0791] // normalized sigma≈1
         var hPass = [Float](repeating: 0, count: v.count)
         for y in 0..<height {
             let row = y * width
