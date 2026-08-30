@@ -1,5 +1,8 @@
 import Foundation
 import CoreGraphics
+import ImageIO
+import Vision
+import CoreImage
 import CollagePipeline
 
 // pipeline-cli — run the collage pipeline headlessly on Mac and emit screenshots + metrics.
@@ -27,6 +30,8 @@ struct Args {
     var outdir = "harness-output"
     var compare = false
     var showHelp = false
+    var handremoverInput: String? = nil
+    var handremoverOutput: String? = nil
 }
 
 func usage() -> String {
@@ -67,6 +72,8 @@ func parseArgs(_ argv: [String]) -> Args {
         switch key {
         case "--help", "-h": a.showHelp = true
         case "--compare": a.compare = true
+        case "--handremover": if let v = next() { a.handremoverInput = v }
+        case "--handremover-out": if let v = next() { a.handremoverOutput = v }
         case "--count": if let v = next().flatMap(Int.init) { a.count = v }
         case "--seed-base": if let v = next().flatMap(Int.init) { a.seedBase = v }
         case "--segmenter": if let v = next() { a.segmenter = v }
@@ -120,6 +127,35 @@ let args = parseArgs(argv)
 if args.showHelp {
     print(usage())
     exit(0)
+}
+
+if let input = args.handremoverInput {
+    runHandRemover(input: input, output: args.handremoverOutput)
+}
+func runHandRemover(input: String, output: String?) {
+    let inURL = URL(fileURLWithPath: (input as NSString).expandingTildeInPath)
+    guard let src = CGImageSourceCreateWithURL(inURL as CFURL, nil),
+          let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
+        FileHandle.standardError.write(Data("error: could not load \(input)\n".utf8))
+        exit(1)
+    }
+    do {
+        let t0 = Date()
+        let result = try HandRemover.segment(from: cg)
+        let ms = Date().timeIntervalSince(t0) * 1000
+        let base = inURL.deletingPathExtension().path
+        let outPath = output ?? (base + "_handremoved.png")
+        try ImageIOHelpers.writePNG(result.image, to: URL(fileURLWithPath: outPath))
+        let maskPath = base + "_handremoved_mask.png"
+        try ImageIOHelpers.writePNG(result.fullMask, to: URL(fileURLWithPath: maskPath))
+        print(String(format: "handremover: %dx%d -> %dx%d  %.0fms", cg.width, cg.height, result.image.width, result.image.height, ms))
+        print("  cutout: \(outPath)")
+        print("  mask:   \(maskPath)")
+        exit(0)
+    } catch {
+        FileHandle.standardError.write(Data("handremover error: \(error)\n".utf8))
+        exit(1)
+    }
 }
 
 let baseSegmenter: SegmenterChoice
