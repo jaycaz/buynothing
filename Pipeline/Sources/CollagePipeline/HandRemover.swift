@@ -30,11 +30,24 @@ public enum HandRemover {
     public struct Params {
         public var skinRBGap: Float = 0.18   // (r-b) threshold for confident skin
         public var skinValMin: Float = 0.25
+        public var skinSatMax: Float = 0.75  // confident skin is low-mid saturation; highly
+                                             // saturated reds (product handles, e.g.
+                                             // tools_01) escape the skin exclusion so the
+                                             // red-product test can keep them. 0.75 chosen
+                                             // from test-set data: product red g/r ~0.1-0.3,
+                                             // hand red g/r ~0.3-0.6 with overlapping sat.
+                                             // Set to a large value (e.g. 99) to disable.
         public var blueSatMin: Float = 0.15
         public var blueBMin: Float = 0.25
         public var redSatMin: Float = 0.25
         public var redRGBap: Float = 0.15
-        public var textureRadius = 10         // 21px uniform window
+        public var textureRadius = 40         // (2*40+1)=81px uniform window; gap probe 2026-08-30:
+                                             // larger window lifts full-res thin-object capture
+                                             // (usbcable_07 0.12->0.20, usbcable_11 0.04->0.06)
+                                             // and mean opacity 0.259->0.313 on the 50-set with
+                                             // no lost images and hand_kept still low. r=80 tested
+                                             // marginally better; 40 is the conservative default.
+                                             // See out/gap_report.md.
         public var textureThreshold: Float = 12
         public var closingIterations = 3
         public var openingIterations = 3   // removes thin stray wires/arcs (<=6px)
@@ -81,7 +94,7 @@ public enum HandRemover {
             guard mx > 0 else { continue }
             let sat = (mx - mn) / mx
 
-            let confidentSkin = (r - b > p.skinRBGap) && r > g && mx > p.skinValMin
+            let confidentSkin = (r - b > p.skinRBGap) && r > g && mx > p.skinValMin && sat < p.skinSatMax
             guard !confidentSkin else { continue }
 
             let blue = b > r * 1.15 && b > p.blueBMin && sat > p.blueSatMin
@@ -104,7 +117,9 @@ public enum HandRemover {
                 let g = Float(rgba[4 * i + 1]) / 255
                 let b = Float(rgba[4 * i + 2]) / 255
                 let mx = max(r, max(g, b))
-                let confidentSkin = (r - b > p.skinRBGap) && r > g && mx > p.skinValMin
+                let mn = min(r, min(g, b))
+                let sat = mx > 0 ? (mx - mn) / mx : 0
+                let confidentSkin = (r - b > p.skinRBGap) && r > g && mx > p.skinValMin && sat < p.skinSatMax
                 if !confidentSkin { keep[i] = true }
             }
         }
