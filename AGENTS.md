@@ -1,5 +1,17 @@
 # Agent Guidelines
 
+## Workflow defaults (user preference, 2026-08-29)
+- Default to the most efficient workflow available. Prefer parallelism and speed.
+- Use `/subagents` (the `subagent` tool) for parallelizable or heavy workstreams; if a child
+  stalls/dies, fall back to doing the work in-session rather than re-spawning repeatedly.
+- Use `/wt` for new work in a git worktree (one branch/worktree per workstream, e.g.
+  `wt/composite-swift` for the Swift port).
+- Known skills to keep in mind: `xcode-build`, `catch-me-up`, `breakdown`, `council-mode`,
+  `pi-subagents` (plus whatever else appears in the session's available-skills list).
+- When the user is traveling, sync review artifacts to
+  `~/Library/Mobile Documents/com~apple~CloudDocs/` (e.g. `BN-Cutout-TestSet/`) so they
+  land on the iPhone automatically.
+
 ## Simulator Screenshot + Screen-Operation Runbook
 
 Verified workflow for driving the BuyNothing app in the iOS Simulator from the CLI

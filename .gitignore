@@ -108,6 +108,7 @@ BuyNothing/Config/Secrets.example.swift
 # Local build artifacts + agent scratch
 build-sim/
 .pi-subagents/
+.pi/subagents/
 .breakdown/
 
 # Harness output (regenerable: `swift run pipeline-cli --compare` in Pipeline/)
