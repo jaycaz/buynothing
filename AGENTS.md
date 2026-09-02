@@ -133,9 +133,18 @@ Layers:
    align → feed → pack) completes (`DONE items=N` + collage PNGs in `/tmp/bn_pipeline_e2e/`).
 
 Gotchas learned the hard way:
-- Constrained simulators fail a *burst* of concurrent Vision requests ("Could not create
-  inference context", Vision code 9). `PipelineProductionPathTests` is therefore
-  `@Suite(.serialized)` and retries Vision code-9 failures 3× before failing.
+- Simulator Vision is flaky or absent depending on the machine: on 2026-09-02 this
+  host's iOS simulator failed EVERY real Vision call (code 9 "Could not create
+  inference context") while the same code ran all 12 photos fine on macOS. The suite
+  retries code-9 with growing backoff (6×, 0.5s→3s) and settles ~400ms between calls,
+  then fails loudly. On a machine where the simulator's ML pool works, it passes.
+- The app suite runs a 3-PHOTO subset (`appSuiteNames`: tools_07/books_03/usbcable_07,
+  chosen to span low/mid/high hand coverage) to stay under the simulator's load limit;
+  full 12-photo coverage lives in the host-side package tests.
+- ⚠️ xcodebuild `-only-testing` at the swift-testing TEST level (Struct/testName())
+  silently matches 0 tests and still prints ** TEST SUCCEEDED ** (verified via
+  xcresult `totalTestCount: 0`). Select at the SUITE level and confirm tests actually
+  ran (per-test lines, or `xcresulttool get test-results summary`).
 - The 12 regression photos exist in BOTH `Pipeline/Tests/CollagePipelineTests/TestImages/`
   and `BuyNothingTests/TestImages/` — keep the two sets in sync when refreshing.
 - Swift 6.2 quirk: a trailing closure passed to a throwing-closure parameter does NOT

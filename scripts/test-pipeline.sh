@@ -18,6 +18,10 @@
 # If layer 2 fails with a "deployment target" mismatch, the auto-picked simulator's
 # runtime is older than the app target — point SIM_DEST at a newer simulator.
 #
+# NOTE: xcodebuild -only-testing at the swift-testing TEST level silently matches 0 tests
+# and reports TEST SUCCEEDED (verified: xcresult totalTestCount=0). Always select at the
+# SUITE level and confirm tests actually ran (per-test lines or xcresult counts).
+#
 # Exit code 0 only if every layer passes. In a broken-Vision simulator the suite
 # fails at layer 2 with a diagnostic — that is the intended signal.
 set -uo pipefail
@@ -72,6 +76,7 @@ echo "==> [2/3] App test suite incl. PipelineProductionPathTests ($SIM_DEST)"
 DD=/tmp/buynothing-dd
 if ! xcodebuild -project BuyNothing.xcodeproj -scheme BuyNothing \
         -destination "$SIM_DEST" -configuration Debug \
+        -parallel-testing-enabled NO \
         -derivedDataPath "$DD" test 2>&1 | grep -E "Test Suite|TEST (SUCCEEDED|FAILED)|error:|✘.*failed" | tail -12; then
     echo "FAIL: app test suite failed (see output above; check status of the Vision environment gate)" >&2
     exit 1
