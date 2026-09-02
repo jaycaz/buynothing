@@ -7,13 +7,17 @@ import CoreGraphics
 /// `ForegroundSegmenter` entirely and keeps the full rectangular photo.
 enum CollageSegmentationMode: String, CaseIterable, Identifiable {
     case visionCutout
+    /// Composite hand-removal cutout (`HandRemover`): Vision region prior + color/texture
+    /// classification that strips confidently skin-toned pixels, so held items come out
+    /// without the gripping hand. Falls back to a plain Vision cutout if no subject.
+    case handRemoval
     case raw
 
     var id: String { rawValue }
 
     var segmentFlag: Bool {
         switch self {
-        case .visionCutout: return true
+        case .visionCutout, .handRemoval: return true
         case .raw: return false
         }
     }
@@ -21,6 +25,7 @@ enum CollageSegmentationMode: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .visionCutout: return "Vision Cutout"
+        case .handRemoval: return "Hand Removal (Composite)"
         case .raw: return "Raw (No Segmentation)"
         }
     }
@@ -42,7 +47,6 @@ enum EverydayObjectFeed {
     ) -> AsyncStream<CGImage> {
         let queries = EverydayObjectQueries.randomPage(count: count, avoiding: usedQueries, using: &rng)
         usedQueries.formUnion(queries)
-        let segment = mode.segmentFlag
 
         return AsyncStream { continuation in
             let producer = Task.detached(priority: .userInitiated) {
@@ -50,7 +54,7 @@ enum EverydayObjectFeed {
                     for query in queries {
                         group.addTask {
                             guard !Task.isCancelled else { return }
-                            if let image = await Self.fetchOne(query: query, segment: segment) {
+                            if let image = await Self.fetchOne(query: query, mode: mode) {
                                 continuation.yield(image)
                             }
                         }
@@ -63,13 +67,13 @@ enum EverydayObjectFeed {
     }
 
     /// Tries up to 3 search results for `query` and returns the first one that
-    /// downloads and (when `segment` is true) segments successfully.
-    private static func fetchOne(query: String, segment: Bool) async -> CGImage? {
+    /// downloads and (when the mode segments) processes successfully.
+    private static func fetchOne(query: String, mode: CollageSegmentationMode) async -> CGImage? {
         guard let urls = try? await SimilarImageSearch.searchImageURLs(query: query, maxResults: 3) else {
             return nil
         }
         for url in urls {
-            if let image = try? await SimilarImageSearch.processSourcedImage(from: url, segment: segment) {
+            if let image = try? await SimilarImageSearch.processSourcedImage(from: url, mode: mode) {
                 return image
             }
         }

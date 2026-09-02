@@ -22,6 +22,14 @@ enum ForegroundSegmenter {
 
     @available(iOS 17.0, *)
     static func cutoutForegroundObject(from cgImage: CGImage) throws -> Cutout {
+        try segment(from: cgImage).cutout
+    }
+
+    /// Runs the Vision subject-lifting model once and returns BOTH the cropped cutout and the
+    /// full-size (input-resolution) predicted mask. `HandRemover` uses the full mask as its
+    /// region prior, then classifies held product vs. hand inside it.
+    @available(iOS 17.0, *)
+    static func segment(from cgImage: CGImage) throws -> (cutout: Cutout, fullMask: CGImage) {
         let request = VNGenerateForegroundInstanceMaskRequest()
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
         try handler.perform([request])
@@ -35,12 +43,13 @@ enum ForegroundSegmenter {
             from: handler
         )
 
-        guard let maskCGImage = CIContext().createCGImage(CIImage(cvPixelBuffer: maskPixelBuffer), from: CIImage(cgImage: cgImage).extent) else {
+        guard let fullMask = CIContext().createCGImage(CIImage(cvPixelBuffer: maskPixelBuffer), from: CIImage(cgImage: cgImage).extent) else {
             throw SegmentationError.maskRenderingFailed
         }
 
-        let compositedCGImage = try compositeMasked(image: cgImage, mask: maskCGImage)
-        return try tightCutout(image: compositedCGImage, mask: maskCGImage)
+        let composited = try compositeMasked(image: cgImage, mask: fullMask)
+        let cutout = try tightCutout(image: composited, mask: fullMask)
+        return (cutout, fullMask)
     }
 
     /// Composites `image` onto a transparent background using `mask` as alpha, keeping only the

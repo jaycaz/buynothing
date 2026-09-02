@@ -103,6 +103,10 @@ enum CollageDebugDump {
 
         let env = ProcessInfo.processInfo.environment
         let segmentationEnabled = env["COLLAGE_SNAPSHOT_SKIP_SEGMENTATION"] != "1"
+        // Segmentation mode mirrors the production one-shot capture: `addPhoto` uses the
+        // composite hand-removal strategy (Vision fallback). Override with
+        // COLLAGE_SNAPSHOT_MODE=visioncutout to exercise the plain Vision path.
+        let segMode: CollageSegmentationMode = env["COLLAGE_SNAPSHOT_MODE"] == "visioncutout" ? .visionCutout : .handRemoval
         var aligned = cgImage
         if segmentationEnabled {
             guard #available(iOS 17.0, *) else {
@@ -110,14 +114,13 @@ enum CollageDebugDump {
                 return
             }
             do {
-                let cutout = try ForegroundSegmenter.cutoutForegroundObject(from: cgImage)
-                aligned = ObjectOrientationAligner.align(cutout)
+                aligned = try segmentObject(cgImage, mode: segMode)
             } catch {
                 note("FAILED reason=segmentation-failed: \(error)", in: directoryURL)
                 return
             }
         }
-        note("aligned \(aligned.width)x\(aligned.height) segmentation=\(segmentationEnabled ? "on" : "off")", in: directoryURL)
+        note("aligned \(aligned.width)x\(aligned.height) segmentation=\(segmentationEnabled ? segMode.rawValue : "off")", in: directoryURL)
 
         var sourceStream: AsyncThrowingStream<CGImage, Error>
         if let localImages = env["COLLAGE_SNAPSHOT_LOCAL_IMAGES"], !localImages.isEmpty {
@@ -139,7 +142,7 @@ enum CollageDebugDump {
                                 }
                                 guard !Task.isCancelled else { return }
                                 if let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
-                                   let image = SimilarImageSearch.processSourcedImageData(data, segment: segment) {
+                                   let image = SimilarImageSearch.processSourcedImageData(data, mode: segment ? segMode : .raw) {
                                     continuation.yield(image)
                                 }
                             }

@@ -66,7 +66,8 @@ enum SimilarImageSearch {
     /// Individual item failures are dropped (a partial collage is fine); a failure of the
     /// search call itself makes the stream throw.
     static func fetchSegmentedStreaming(query: String, maxImages: Int = 10, segment: Bool = true) -> AsyncThrowingStream<CGImage, Error> {
-        AsyncThrowingStream(bufferingPolicy: .unbounded) { continuation in
+        let mode: CollageSegmentationMode = segment ? .visionCutout : .raw
+        return AsyncThrowingStream(bufferingPolicy: .unbounded) { continuation in
             let producer = Task.detached(priority: .userInitiated) {
                 do {
                     let urls = try await Self.searchImageURLs(query: query, maxResults: min(maxImages, 10))
@@ -74,7 +75,7 @@ enum SimilarImageSearch {
                         for url in urls {
                             group.addTask {
                                 guard !Task.isCancelled else { return }
-                                if let image = try? await Self.processSourcedImage(from: url, segment: segment) {
+                                if let image = try? await Self.processSourcedImage(from: url, mode: mode) {
                                     continuation.yield(image)
                                 }
                             }
@@ -193,7 +194,7 @@ enum SimilarImageSearch {
     /// Downloads a single sourced image and turns it into a collage-ready item via
     /// `processSourcedImageData`. Returns `nil` when the fetch itself is unusable
     /// (bad URL, non-2xx response); callers drop it.
-    static func processSourcedImage(from urlString: String, segment: Bool) async throws -> CGImage? {
+    static func processSourcedImage(from urlString: String, mode: CollageSegmentationMode = .visionCutout) async throws -> CGImage? {
         guard let url = URL(string: urlString) else { return nil }
 
         var request = URLRequest(url: url)
@@ -204,14 +205,14 @@ enum SimilarImageSearch {
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else { return nil }
 
-        return processSourcedImageData(data, segment: segment)
+        return processSourcedImageData(data, mode: mode)
     }
 
     /// Turns downloaded image data into a collage-ready item: sanity filters, then (when
-    /// `segment` is true) on-device background removal + PCA alignment — the same treatment
+    /// the mode segments) on-device background removal + PCA alignment — the same treatment
     /// as the user's own photo. Returns `nil` when the item is unusable (too small,
     /// banner-shaped, or no segmentable subject); callers drop it.
-    static func processSourcedImageData(_ data: Data, segment: Bool) -> CGImage? {
+    static func processSourcedImageData(_ data: Data, mode: CollageSegmentationMode = .visionCutout) -> CGImage? {
         guard data.count <= 12_000_000 else { return nil }
 
         guard let image = UIImage(data: data), let cgImage = image.cgImage else { return nil }
@@ -219,11 +220,10 @@ enum SimilarImageSearch {
         let aspect = max(cgImage.width, cgImage.height) / max(1, min(cgImage.width, cgImage.height))
         guard aspect <= 5 else { return nil }
 
-        guard segment, #available(iOS 17.0, *) else { return cgImage }
+        guard mode.segmentFlag, #available(iOS 17.0, *) else { return cgImage }
 
         do {
-            let cutout = try ForegroundSegmenter.cutoutForegroundObject(from: cgImage)
-            return ObjectOrientationAligner.align(cutout)
+            return try segmentObject(cgImage, mode: mode)
         } catch {
             // No segmentable subject (text, logos, cluttered photos): drop this item
             // rather than pasting in a backgrounded rectangle.

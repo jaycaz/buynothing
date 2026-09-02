@@ -99,14 +99,13 @@ final class CollageBrowserModel: ObservableObject {
     /// array index nearest the current scroll-center, then repacks. Silently drops the photo
     /// if segmentation is on and finds no subject (same failure policy as the rest of the app).
     func insertCapturedItem(_ cgImage: CGImage) {
-        let segment = segmentationMode.segmentFlag
+        let mode = segmentationMode
         Task { [weak self] in
             guard let self else { return }
             var processed: CGImage? = cgImage
-            if segment, #available(iOS 17.0, *) {
+            if mode.segmentFlag, #available(iOS 17.0, *) {
                 do {
-                    let cutout = try ForegroundSegmenter.cutoutForegroundObject(from: cgImage)
-                    processed = ObjectOrientationAligner.align(cutout)
+                    processed = try segmentObject(cgImage, mode: mode)
                 } catch {
                     processed = nil
                 }

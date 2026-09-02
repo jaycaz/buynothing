@@ -154,9 +154,10 @@ final class SnapshotCollageModel: ObservableObject {
         }
 
         do {
-            let cutout = try ForegroundSegmenter.cutoutForegroundObject(from: cgImage)
-
-            let aligned = ObjectOrientationAligner.align(cutout)
+            // One-shot capture: the item is usually held in a hand, so run the composite
+            // hand-removal strategy (it falls back to plain Vision if no subject) to get
+            // the item cut out WITHOUT the gripping hand.
+            let aligned = try segmentObject(cgImage, mode: .handRemoval)
             await MainActor.run { self.userAlignedItem = aligned }
 
             pipelineStage = "Identifying..."

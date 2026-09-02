@@ -9,23 +9,29 @@ import CoreGraphics
 public enum SegmenterChoice: String, Codable, CaseIterable {
     case vision
     case groundTruth
+    /// Composite hand-removal cutout (see `HandRemover`): Vision region prior + color/texture
+    /// classification that excludes confidently skin-toned pixels, so held items come out
+    /// without the gripping hand.
+    case handRemover
 
     /// Human/CLI-friendly name used for output directory tags (keeps `--compare` and
-    /// single-run output dirs consistent: `vision`, `ground_truth`).
+    /// single-run output dirs consistent: `vision`, `ground_truth`, `hand_remover`).
     public var displayName: String {
         switch self {
         case .vision: return "vision"
         case .groundTruth: return "ground_truth"
+        case .handRemover: return "hand_remover"
         }
     }
 
     /// Resolves a CLI-supplied name, accepting `vision`, `ground-truth`, `ground_truth`,
-    /// and `groundTruth` (case-insensitive).
+    /// `groundTruth`, `handremover`, `hand-remover`, and `composite` (case-insensitive).
     public static func fromCLIString(_ raw: String) -> SegmenterChoice? {
         let normalized = raw.lowercased().replacingOccurrences(of: "-", with: "_").replacingOccurrences(of: " ", with: "_")
         switch normalized {
         case "vision": return .vision
         case "ground_truth", "groundtruth": return .groundTruth
+        case "hand_remover", "handremover", "composite", "composite_swift": return .handRemover
         default: return nil
         }
     }

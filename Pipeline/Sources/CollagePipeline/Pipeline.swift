@@ -57,6 +57,10 @@ public struct Pipeline {
                     let composited = try ForegroundSegmenter.compositeMasked(image: photo.cgImage, mask: photo.groundTruthMask)
                     cutout = try ForegroundSegmenter.tightCutout(image: composited, mask: photo.groundTruthMask)
                     predictedFullMask = photo.groundTruthMask
+                case .handRemover:
+                    let result = try HandRemover.segment(from: photo.cgImage)
+                    cutout = ForegroundSegmenter.Cutout(image: result.image, alphaMask: result.croppedMask)
+                    predictedFullMask = result.fullMask
                 }
                 metrics.segmentationMs = Date().timeIntervalSince(segStart) * 1000
                 segTimes.append(metrics.segmentationMs)

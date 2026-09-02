@@ -47,7 +47,27 @@ Context: `composite` / `composite_swift` strategies won the 50-photo benchmark (
   color/texture consistency check across the gap; wire the detection into HandRemover
   as a guard before the final crop; test on deliberately hand-grip-heavy photos from
   the new dataset.
-- [ ] Integrate `HandRemover` (Swift port) into the app `Pipeline` for production use
+- [x] Integrate `HandRemover` (Swift port) into the app `Pipeline` for production use (2026-09-02)
+
+### Done 2026-09-02 (HandRemover production integration)
+- [x] **Merged `wt/composite-swift` into main** (HandRemover + 12-photo regression suite + CLI
+      `--handremover`/`--handremover-sweep` + sweep infra). `HandRemover.Result` now also carries a
+      `croppedMask` (mask cropped to the cutout rect) so it satisfies the `Cutout` invariant.
+- [x] **Package strategy**: `SegmenterChoice.handRemover` wired into `Pipeline.run()` + CLI
+      (`--segmenter handremover` / `composite`). 25/25 package tests green; CLI e2e verified on
+      real photos (tools_03: stapler kept, correctly oriented, ~310ms).
+- [x] **App integration**: `BuyNothing/Utilities/HandRemover.swift` (app-side copy, keep in sync
+      with the package); `ForegroundSegmenter.segment(from:)` full-mask API; new
+      `CollageSegmentationMode.handRemoval` ("Hand Removal (Composite)" in the debug panel);
+      shared `segmentObject(_:mode:)` helper (hand-removal first, Vision fallback, PCA align).
+      Wired into: one-shot capture (`SnapshotCollageModel.addPhoto` now defaults to hand removal —
+      the item is usually held in hand), collage-browser capture + web feed (per-mode), and the
+      `COLLAGE_SNAPSHOT_*` headless dump harness (`COLLAGE_SNAPSHOT_MODE=handremoval|visioncutout`).
+- [x] **Verification**: app builds + all app tests pass (iOS 26.4 sim). iOS runtime check blocked by
+      environment: simulator can't create Vision inference contexts (control: the pre-existing
+      visionCutout path fails identically), and the physical iPhone (iOS 27.0 beta) dev session
+      won't mount with Xcode 26.3. HandRemover's CoreGraphics path is macOS-verified on the same
+      12-photo set; re-run the iOS check once simulator/device Vision works.
 
 ### Done 2026-08-30 (gap probe; commit c906285, not yet pushed)
 - [x] **Red-hand gap fixed** — the confident-skin test was eating highly saturated reds

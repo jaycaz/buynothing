@@ -10,7 +10,7 @@ import CollagePipeline
 //   pipeline-cli [options]
 //     --count N          number of synthetic photos (default 6)
 //     --seed-base N      starting seed (default 0)
-//     --segmenter S      vision | ground-truth (default vision)
+//     --segmenter S      vision | handremover | ground-truth (default vision)
 //     --canvas-width W   collage canvas width (default 900)
 //     --row-height H     target row height (default 220)
 //     --spacing S        gutter between items (default 6)
@@ -44,7 +44,8 @@ func usage() -> String {
     Options:
       --count N          number of synthetic photos (default 6)
       --seed-base N      starting seed (default 0)
-      --segmenter S      vision | ground-truth (default vision; 'ground_truth'/'groundTruth' also accepted)
+      --segmenter S      vision | handremover | ground-truth (default vision;
+                          'hand-remover'/'composite'/'ground_truth'/'groundTruth' also accepted)
       --canvas-width W   collage canvas width (default 900)
       --row-height H     target row height (default 220)
       --spacing S        gutter between items (default 6)
@@ -245,7 +246,7 @@ if args.compare {
     baseSegmenter = .vision
 } else {
     guard let resolved = SegmenterChoice.fromCLIString(args.segmenter) else {
-        FileHandle.standardError.write(Data("error: unknown --segmenter '\(args.segmenter)' (expected 'vision' or 'ground-truth')\n".utf8))
+        FileHandle.standardError.write(Data("error: unknown --segmenter '\(args.segmenter)' (expected 'vision', 'handremover', or 'ground-truth')\n".utf8))
         exit(1)
     }
     baseSegmenter = resolved

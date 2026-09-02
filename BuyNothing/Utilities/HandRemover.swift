@@ -1,7 +1,9 @@
 import CoreGraphics
 import Foundation
 
-/// Composite hand-removal cutout, ported 1:1 from `scripts/composite.py`.
+/// Composite hand-removal cutout — the app-side copy of `CollagePipeline.HandRemover`
+/// (same package codebase's `Pipeline/Sources/CollagePipeline/HandRemover.swift`; keep
+/// the two in sync when the strategy changes). Original ported 1:1 from `scripts/composite.py`.
 ///
 /// Strategy (no SAM, no hand pose — pure image signals):
 ///  1. region  = Vision subject-lift full mask (product + hand + everything salient)
@@ -11,18 +13,18 @@ import Foundation
 ///  4. finish  = 1px Gaussian feather, tight crop
 ///
 /// Cross-platform (macOS + iOS), CoreGraphics only.
-public enum HandRemover {
-    public struct Result {
+enum HandRemover {
+    struct Result {
         /// The cutout composited with the (feathered) mask as alpha, cropped tight.
-        public let image: CGImage
+        let image: CGImage
         /// Full-resolution (input-sized) binary mask, 255 = kept pixel.
-        public let fullMask: CGImage
+        let fullMask: CGImage
         /// Binary mask cropped to the exact same rect as `image` (255 = kept pixel), so it
         /// satisfies `ForegroundSegmenter.Cutout`'s "mask matches image dimensions" invariant.
-        public let croppedMask: CGImage
+        let croppedMask: CGImage
     }
 
-    public enum HandRemoverError: Error {
+    enum HandRemoverError: Error {
         case noSubject
         case pixelAccessFailed
         case maskRenderFailed
@@ -32,46 +34,48 @@ public enum HandRemover {
 
     /// All tunables for `segment`, with the shipped defaults. Exposed so the
     /// benchmark harness can sweep parameter grids without recompiling per config.
-    public struct Params {
-        public var skinRBGap: Float = 0.18   // (r-b) threshold for confident skin
-        public var skinValMin: Float = 0.25
-        public var skinSatMax: Float = 0.75  // confident skin is low-mid saturation; highly
+    struct Params {
+        var skinRBGap: Float = 0.18   // (r-b) threshold for confident skin
+        var skinValMin: Float = 0.25
+        var skinSatMax: Float = 0.75  // confident skin is low-mid saturation; highly
                                              // saturated reds (product handles, e.g.
                                              // tools_01) escape the skin exclusion so the
                                              // red-product test can keep them. 0.75 chosen
                                              // from test-set data: product red g/r ~0.1-0.3,
                                              // hand red g/r ~0.3-0.6 with overlapping sat.
                                              // Set to a large value (e.g. 99) to disable.
-        public var blueSatMin: Float = 0.15
-        public var blueBMin: Float = 0.25
-        public var redSatMin: Float = 0.25
-        public var redRGBap: Float = 0.15
-        public var textureRadius = 40         // (2*40+1)=81px uniform window; gap probe 2026-08-30:
+        var blueSatMin: Float = 0.15
+        var blueBMin: Float = 0.25
+        var redSatMin: Float = 0.25
+        var redRGBap: Float = 0.15
+        var textureRadius = 40         // (2*40+1)=81px uniform window; gap probe 2026-08-30:
                                              // larger window lifts full-res thin-object capture
                                              // (usbcable_07 0.12->0.20, usbcable_11 0.04->0.06)
                                              // and mean opacity 0.259->0.313 on the 50-set with
                                              // no lost images and hand_kept still low. r=80 tested
                                              // marginally better; 40 is the conservative default.
                                              // See out/gap_report.md.
-        public var textureThreshold: Float = 12
-        public var closingIterations = 3
-        public var openingIterations = 3   // removes thin stray wires/arcs (<=6px)
-        public var minComponentPixels = 1000
-        public var rescueMinComponentPixels = 500  // sweep 2026-08-30: retry bound used only
+        var textureThreshold: Float = 12
+        var closingIterations = 3
+        var openingIterations = 3   // removes thin stray wires/arcs (<=6px)
+        var minComponentPixels = 1000
+        var rescueMinComponentPixels = 500  // sweep 2026-08-30: retry bound used only
                                                   // when the default bound drops the WHOLE
                                                   // object (recovers tools_05 to 10.8% opaque;
                                                   // see out/sweep/SWEEP_SUMMARY.md)
-        public var minFillRatio: Float = 0.10  // area/bbox-area; kills thin spiky wires
-        public init() {}
+        var minFillRatio: Float = 0.10  // area/bbox-area; kills thin spiky wires
+        init() {}
     }
 
     /// Cut out the product, removing the holding hand.
-    public static func segment(from cgImage: CGImage) throws -> Result {
+    @available(iOS 17.0, *)
+    static func segment(from cgImage: CGImage) throws -> Result {
         try segment(from: cgImage, params: Params())
     }
 
     /// Cut out the product with an explicit parameter set (defaults = shipped behavior).
-    public static func segment(from cgImage: CGImage, params p: Params) throws -> Result {
+    @available(iOS 17.0, *)
+    static func segment(from cgImage: CGImage, params p: Params) throws -> Result {
         // 1) region prior from Vision
         let region = try ForegroundSegmenter.segment(from: cgImage).fullMask
         let w = cgImage.width
@@ -244,7 +248,7 @@ public enum HandRemover {
 
     /// Tight bounding box (top-left origin, same convention `CGImage.cropping(to:)` uses
     /// for these buffer-built top-down images) of the top-down alpha mask.
-    internal static func boundingBoxRect(alpha: [UInt8], width: Int, height: Int) -> CGRect? {
+    static func boundingBoxRect(alpha: [UInt8], width: Int, height: Int) -> CGRect? {
         var minX = width, maxX = -1, minY = height, maxY = -1
         for y in 0..<height {
             let row = y * width
@@ -261,7 +265,7 @@ public enum HandRemover {
 
     /// Crop a top-down RGBA CGImage to the bounding box of a top-down alpha mask,
     /// returning a new top-down CGImage (cropping with a top-left-origin rect).
-    internal static func cropToMask(_ image: CGImage, alpha: [UInt8], width: Int, height: Int) -> CGImage? {
+    static func cropToMask(_ image: CGImage, alpha: [UInt8], width: Int, height: Int) -> CGImage? {
         guard let rect = boundingBoxRect(alpha: alpha, width: width, height: height) else { return nil }
         return image.cropping(to: rect)
     }
@@ -269,7 +273,7 @@ public enum HandRemover {
     /// Build a premultipliedLast RGBA CGImage: color from `rgba`, alpha from `alpha`.
     /// Both inputs are row-major, top-to-bottom (row 0 = top); the result is oriented
     /// the same way (buffer row 0 = top of the CGImage).
-    internal static func compositeWithAlpha(rgba: [UInt8], alpha: [UInt8], width: Int, height: Int) -> CGImage? {
+    static func compositeWithAlpha(rgba: [UInt8], alpha: [UInt8], width: Int, height: Int) -> CGImage? {
         let n = width * height
         guard rgba.count == n * 4, alpha.count == n else { return nil }
         // A CGImage built from a raw buffer has buffer row 0 = TOP of the image (verified
@@ -309,7 +313,7 @@ public enum HandRemover {
     }
 
     /// Sobel gradient magnitude (float, ~0...2900) on a 0-255 luminance field.
-    internal static func sobelMagnitude(_ l: [Float], width: Int, height: Int) -> [Float] {
+    static func sobelMagnitude(_ l: [Float], width: Int, height: Int) -> [Float] {
         var out = [Float](repeating: 0, count: l.count)
         func at(_ y: Int, _ x: Int) -> Float {
             let yy = min(max(y, 0), height - 1)
@@ -329,7 +333,7 @@ public enum HandRemover {
     }
 
     /// Separable uniform (box) filter with clamped borders.
-    internal static func boxFilter(_ v: [Float], width: Int, height: Int, radius: Int) -> [Float] {
+    static func boxFilter(_ v: [Float], width: Int, height: Int, radius: Int) -> [Float] {
         let span = 2 * radius + 1
         let invSpan = 1.0 / Float(span)
         var hPass = [Float](repeating: 0, count: v.count)
@@ -412,7 +416,7 @@ public enum HandRemover {
     /// Morphological opening (erode → dilate), N iterations — removes thin/spiky
     /// foreground structures (stray wires, edges) thinner than ~2N px while preserving
     /// the solid body of the object.
-    internal static func open(_ m: [Bool], width: Int, height: Int, iterations: Int) -> [Bool] {
+    static func open(_ m: [Bool], width: Int, height: Int, iterations: Int) -> [Bool] {
         var cur = m
         for _ in 0..<iterations {
             cur = dilate(erode(cur, width: width, height: height), width: width, height: height)
@@ -422,7 +426,7 @@ public enum HandRemover {
 
     /// Drop 8-connected components smaller than `minSize` pixels (or with a
     /// bounding-box fill ratio below `minFillRatio` — thin spiky wires).
-    internal static func removeSmallComponents(_ m: [Bool], width: Int, height: Int, minSize: Int,
+    static func removeSmallComponents(_ m: [Bool], width: Int, height: Int, minSize: Int,
                                                minFillRatio: Float = 0.10) -> [Bool] {
         var out = m
         var visited = [Bool](repeating: false, count: m.count)
@@ -469,7 +473,7 @@ public enum HandRemover {
     }
 
     /// Fill background holes (background regions not connected to the border).
-    internal static func fillHoles(_ m: [Bool], width: Int, height: Int) -> [Bool] {
+    static func fillHoles(_ m: [Bool], width: Int, height: Int) -> [Bool] {
         var out = m
         var visited = [Bool](repeating: false, count: m.count)
         var stack = [Int]()
@@ -511,7 +515,7 @@ public enum HandRemover {
 
     /// Separable ~1px gaussian (5-tap [0.208,0.607,1,0.607,0.208]/2.630) on 0-255 mask.
     /// The weights sum to 1.0, so constant regions are preserved (a "feather", not a fade).
-    internal static func gaussianBlur1(_ v: [UInt8], width: Int, height: Int) -> [UInt8] {
+    static func gaussianBlur1(_ v: [UInt8], width: Int, height: Int) -> [UInt8] {
         let k: [Float] = [0.0791, 0.2308, 0.3802, 0.2308, 0.0791] // normalized sigma≈1
         var hPass = [Float](repeating: 0, count: v.count)
         for y in 0..<height {
@@ -538,4 +542,30 @@ public enum HandRemover {
         }
         return out
     }
+}
+
+/// One-stop segmentation for the app's production paths: applies the selected
+/// `CollageSegmentationMode` and PCA-aligns the result (the same post-processing every
+/// call site needs).
+///
+/// `.handRemoval` tries the composite hand-removal strategy first — best for held
+/// objects, since it strips the gripping hand — and falls back to plain Vision subject
+/// lift if that finds no usable subject. `.visionCutout` uses Vision directly.
+/// `.raw` returns the image untouched.
+@available(iOS 17.0, *)
+func segmentObject(_ cgImage: CGImage, mode: CollageSegmentationMode) throws -> CGImage {
+    guard mode.segmentFlag else { return cgImage }
+
+    if mode == .handRemoval {
+        do {
+            let result = try HandRemover.segment(from: cgImage)
+            let cutout = ForegroundSegmenter.Cutout(image: result.image, alphaMask: result.croppedMask)
+            return ObjectOrientationAligner.align(cutout)
+        } catch {
+            // No usable subject under the composite strategy — fall through to Vision.
+        }
+    }
+
+    let cutout = try ForegroundSegmenter.cutoutForegroundObject(from: cgImage)
+    return ObjectOrientationAligner.align(cutout)
 }
