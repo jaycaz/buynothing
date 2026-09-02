@@ -26,7 +26,8 @@ let package = Package(
         .testTarget(
             name: "CollagePipelineTests",
             dependencies: ["CollagePipeline"],
-            path: "Tests/CollagePipelineTests"
+            path: "Tests/CollagePipelineTests",
+            resources: [.process("TestImages")]
         )
     ]
 )
