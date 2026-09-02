@@ -113,3 +113,34 @@ Gotchas:
 - `devicectl device info processes` can resolve the UUID to the wrong ECID; don't treat
   its failure as evidence of a crash.
 - macOS has no `timeout` binary — use `cmd & PID=$!; sleep N; kill $PID`.
+
+## Pipeline test runbook (cutout / hand-removal regression)
+
+Single command that proves the whole pipeline works in an environment where Vision runs
+(simulator/VM or physical device):
+
+    scripts/test-pipeline.sh             # 3 layers, cheapest first
+    scripts/test-pipeline.sh --skip-e2e  # skip the headless app launch
+    SIM_DEST="platform=iOS Simulator,name=iPhone 17 Pro" scripts/test-pipeline.sh
+
+Layers:
+1. `Pipeline/` package tests (host, `swift test`) — includes the 12-photo HandRemover suite.
+2. App test suite on an iOS simulator — includes `PipelineProductionPathTests`, whose
+   `visionEnvironmentGate` test FAILS WITH A DIAGNOSTIC when Vision can't create inference
+   contexts (a broken simulator/VM is a red test, not a silent pass).
+3. Headless E2E: launches the app with the `COLLAGE_SNAPSHOT_*` dump harness on a real
+   held-object photo and asserts the one-shot capture pipeline (handRemoval segment →
+   align → feed → pack) completes (`DONE items=N` + collage PNGs in `/tmp/bn_pipeline_e2e/`).
+
+Gotchas learned the hard way:
+- Constrained simulators fail a *burst* of concurrent Vision requests ("Could not create
+  inference context", Vision code 9). `PipelineProductionPathTests` is therefore
+  `@Suite(.serialized)` and retries Vision code-9 failures 3× before failing.
+- The 12 regression photos exist in BOTH `Pipeline/Tests/CollagePipelineTests/TestImages/`
+  and `BuyNothingTests/TestImages/` — keep the two sets in sync when refreshing.
+- Swift 6.2 quirk: a trailing closure passed to a throwing-closure parameter does NOT
+  inherit the throwing context — write the inner `try` explicitly:
+  `try helper { try throwingCall() }` (a plain `try helper { throwingCall() }` is a
+  "call can throw, but it is not marked with 'try'" error).
+- `Bundle.module` does not exist in the app test target; use the
+  `Bundle.allBundles` lookup in `ProductionPathTestImages.bundle` instead.

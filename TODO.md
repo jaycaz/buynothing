@@ -68,6 +68,12 @@ Context: `composite` / `composite_swift` strategies won the 50-photo benchmark (
       visionCutout path fails identically), and the physical iPhone (iOS 27.0 beta) dev session
       won't mount with Xcode 26.3. HandRemover's CoreGraphics path is macOS-verified on the same
       12-photo set; re-run the iOS check once simulator/device Vision works.
+- [x] **Automated pipeline test harness** (so a working iOS VM is a one-command check):
+      `scripts/test-pipeline.sh` — 3 layers: package tests → app tests incl. the new
+      `PipelineProductionPathTests` (environment gate that FAILS LOUDLY when Vision is broken,
+      12-photo handRemoval/visionCutout invariants, conditional skin-removal effectiveness test,
+      serialized + Vision code-9 retry for constrained sims) → headless E2E dump of the one-shot
+      capture pipeline. Runbook + Swift-6.2 trailing-closure `try` gotcha documented in AGENTS.md.
 
 ### Done 2026-08-30 (gap probe; commit c906285, not yet pushed)
 - [x] **Red-hand gap fixed** — the confident-skin test was eating highly saturated reds
