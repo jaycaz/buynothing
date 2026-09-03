@@ -63,17 +63,23 @@ Context: `composite` / `composite_swift` strategies won the 50-photo benchmark (
       Wired into: one-shot capture (`SnapshotCollageModel.addPhoto` now defaults to hand removal —
       the item is usually held in hand), collage-browser capture + web feed (per-mode), and the
       `COLLAGE_SNAPSHOT_*` headless dump harness (`COLLAGE_SNAPSHOT_MODE=handremoval|visioncutout`).
-- [x] **Verification**: app builds + all app tests pass (iOS 26.4 sim). iOS runtime check blocked by
-      environment: simulator can't create Vision inference contexts (control: the pre-existing
-      visionCutout path fails identically), and the physical iPhone (iOS 27.0 beta) dev session
-      won't mount with Xcode 26.3. HandRemover's CoreGraphics path is macOS-verified on the same
-      12-photo set; re-run the iOS check once simulator/device Vision works.
+- [x] **Verification**: app builds + all app tests pass (iOS 26.4 sim). iOS runtime check blocked
+      by THIS machine's environment (per-machine ANE/GPU pool issue, not a simulator limitation
+      in general — the macOS host runs all 12 photos through Vision fine): every REAL Vision call
+      in the iOS simulator fails code 9 "Could not create inference context", even a single call
+      with 6× growing-backoff retries; the physical iPhone (iOS 27.0 beta) dev session won't mount
+      with Xcode 26.3. HandRemover's CoreGraphics path is macOS-verified on the same photo set;
+      re-run `scripts/test-pipeline.sh` on the iOS VM (or any machine where sim Vision works) to
+      confirm the app-level layer. NOTE: earlier "single test passes" evidence was a false
+      positive — xcodebuild test-level `-only-testing` matches 0 swift-testing tests and still
+      prints TEST SUCCEEDED (verified via xcresult totalTestCount=0).
 - [x] **Automated pipeline test harness** (so a working iOS VM is a one-command check):
       `scripts/test-pipeline.sh` — 3 layers: package tests → app tests incl. the new
       `PipelineProductionPathTests` (environment gate that FAILS LOUDLY when Vision is broken,
-      12-photo handRemoval/visionCutout invariants, conditional skin-removal effectiveness test,
-      serialized + Vision code-9 retry for constrained sims) → headless E2E dump of the one-shot
-      capture pipeline. Runbook + Swift-6.2 trailing-closure `try` gotcha documented in AGENTS.md.
+      3-photo handRemoval/visionCutout invariants — full 12-photo coverage is in the package
+      tests —, conditional skin-removal effectiveness test, serialized + Vision code-9 retry)
+      → headless E2E dump of the one-shot capture pipeline. Runbook + gotchas (0-test
+      false positive, Swift-6.2 trailing-closure `try`) documented in AGENTS.md.
 
 ### Done 2026-08-30 (gap probe; commit c906285, not yet pushed)
 - [x] **Red-hand gap fixed** — the confident-skin test was eating highly saturated reds
