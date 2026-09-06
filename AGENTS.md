@@ -1,5 +1,11 @@
 # Agent Guidelines
 
+## Meeting context (check first)
+Before starting work, check `.meeting/STATUS.md` and `.meeting/OPEN_QUESTIONS.md` for
+context from a recent voice/chat meeting that hasn't made it into `TODO.md` yet, and
+check `.meeting/briefs/` for a ready-made brief for the task at hand. This folder is
+gitignored/ephemeral — see `.meeting/README.md` for the full schema.
+
 ## Workflow defaults (user preference, 2026-08-29)
 - Default to the most efficient workflow available. Prefer parallelism and speed.
 - Use `/subagents` (the `subagent` tool) for parallelizable or heavy workstreams; if a child
