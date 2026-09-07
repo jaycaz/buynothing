@@ -8,6 +8,19 @@ not the point of the product. See `GOAL.md` for the full statement.
 
 ---
 
+## Done 2026-09-07: segmentation-strategies plan landed (b40f76c)
+
+All five phases of `docs/segmentation-strategies-plan.md` are in `main` (pushed):
+`visionMinusSkin` (Vision subject mask minus confident-skin pixels, no colour gate),
+the `Segmentation.run` contract over `raw`/`vision`/`handRemover` with five shared
+params, `SegmentationComparison` + `pipeline-cli --batch`, and PipelineViewer's
+strategy picker, live reprocess, and side-by-side compare view. 42 tests / 6 suites
+green; 12-photo batch 48/48 OK. Ran via the new `/implement` skill
+(`~/.claude/skills/implement/`) — orchestrator + subagent delegation, resumed the
+runner's outstanding phases and landed them. Follow-up still open: re-point the
+stashed app-layer picker work (`git stash list` → "segmentation Strategy work")
+at `Segmentation.run` and add `visionMinusSkin` to the app debug sheet.
+
 ## PipelineViewer — Live Review/Tuning Tool (added 2026-09-06)
 
 Added a SwiftUI Mac app (`Pipeline/Sources/PipelineViewer`, new `PipelineViewer` product
