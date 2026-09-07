@@ -3,10 +3,6 @@ import CoreGraphics
 import ImageIO
 import CollagePipeline
 
-// HandRemover.Params is a plain value struct (Float/Int fields only) — safe to hand across
-// the Task.detached boundary below.
-extension HandRemover.Params: @unchecked Sendable {}
-
 struct ReviewItem: Identifiable {
     let url: URL
     var inputImage: CGImage?
@@ -37,11 +33,17 @@ struct ReviewItem: Identifiable {
 final class ReviewModel: ObservableObject {
     @Published private(set) var items: [ReviewItem] = []
     @Published var selectedID: URL?
-    @Published var params = HandRemover.Params()
+    @Published var params = SegmentationParams()
+    @Published var strategy: SegmentationStrategy = .visionMinusSkin
+    @Published var compareMode: Bool = false
+    @Published var compareResults: [SegmentationStrategy: CGImage] = [:]
+    @Published var compareMeasurements: [SegmentationMeasurement] = []
+    @Published private(set) var isComparing: Bool = false
     @Published private(set) var isBatchProcessing = false
     @Published private(set) var sourceDescription: String = ""
 
     private var reprocessTask: Task<Void, Never>?
+    private var compareTask: Task<Void, Never>?
 
     private static let supportedExtensions: Set<String> = [
         "jpg", "jpeg", "png", "heic", "heif", "webp", "avif", "tiff", "tif", "bmp", "gif"
@@ -77,8 +79,9 @@ final class ReviewModel: ObservableObject {
         isBatchProcessing = true
         defer { isBatchProcessing = false }
         let currentParams = params
+        let currentStrategy = strategy
         for index in items.indices {
-            await process(index: index, params: currentParams)
+            await process(index: index, strategy: currentStrategy, params: currentParams)
         }
     }
 
@@ -86,11 +89,12 @@ final class ReviewModel: ObservableObject {
     func scheduleReprocessSelected() {
         reprocessTask?.cancel()
         let currentParams = params
+        let currentStrategy = strategy
         reprocessTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 150_000_000)
             guard !Task.isCancelled, let self else { return }
             if let idx = self.items.firstIndex(where: { $0.id == self.selectedID }) {
-                await self.process(index: idx, params: currentParams)
+                await self.process(index: idx, strategy: currentStrategy, params: currentParams)
             }
         }
     }
@@ -98,13 +102,72 @@ final class ReviewModel: ObservableObject {
     func select(_ id: URL) {
         selectedID = id
         if let idx = items.firstIndex(where: { $0.id == id }), items[idx].cutoutImage == nil, items[idx].error == nil {
-            Task { await process(index: idx, params: params) }
+            Task { await process(index: idx, strategy: strategy, params: params) }
         }
     }
 
     func resetParams() {
-        params = HandRemover.Params()
+        params = SegmentationParams()
         scheduleReprocessSelected()
+    }
+
+    /// Runs every `SegmentationStrategy.allCases` over the selected image and
+    /// collects one cutout per strategy (into `compareResults`) plus one
+    /// `SegmentationMeasurement` per strategy (into `compareMeasurements`).
+    /// A strategy that throws is absent from `compareResults` and carries its
+    /// `error` in its measurement. No-op when there is no selected item.
+    func runComparison() async {
+        guard let item = selected else { return }
+        let url = item.url
+        let currentParams = params
+
+        compareTask?.cancel()
+        compareResults = [:]
+        compareMeasurements = []
+        isComparing = true
+        defer { isComparing = false }
+
+        let outcome: Swift.Result<CompareOutcome, ProcessFailure> = await Task.detached(priority: .userInitiated) {
+            guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+                  let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
+                return .failure(ProcessFailure(message: "could not load image"))
+            }
+            var results: [SegmentationStrategy: CGImage] = [:]
+            var measurements: [SegmentationMeasurement] = []
+            for strategy in SegmentationStrategy.allCases where !Task.isCancelled {
+                do {
+                    let out = try Segmentation.run(cg, strategy: strategy, params: currentParams)
+                    results[strategy] = out.image
+                    measurements.append(SegmentationMeasurement(
+                        strategy: strategy,
+                        keptFraction: SegmentationComparison.keptFraction(ofMask: out.fullMask),
+                        cutoutWidth: out.image.width,
+                        cutoutHeight: out.image.height,
+                        milliseconds: out.milliseconds,
+                        error: nil
+                    ))
+                } catch {
+                    measurements.append(SegmentationMeasurement(
+                        strategy: strategy,
+                        keptFraction: 0,
+                        cutoutWidth: 0,
+                        cutoutHeight: 0,
+                        milliseconds: 0,
+                        error: String(describing: error)
+                    ))
+                }
+            }
+            return .success(CompareOutcome(results: results, measurements: measurements))
+        }.value
+
+        guard selected?.id == url else { return }
+        switch outcome {
+        case .success(let o):
+            compareResults = o.results
+            compareMeasurements = o.measurements
+        case .failure:
+            break
+        }
     }
 
     private struct ProcessFailure: Error, Sendable {
@@ -119,25 +182,28 @@ final class ReviewModel: ObservableObject {
         var ms: Double
     }
 
-    private func process(index: Int, params: HandRemover.Params) async {
+    private struct CompareOutcome: @unchecked Sendable {
+        var results: [SegmentationStrategy: CGImage]
+        var measurements: [SegmentationMeasurement]
+    }
+
+    private func process(index: Int, strategy: SegmentationStrategy, params: SegmentationParams) async {
         let url = items[index].url
         let outcome: Swift.Result<ProcessOutcome, ProcessFailure> = await Task.detached(priority: .userInitiated) {
             guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
                   let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
                 return .failure(ProcessFailure(message: "could not load image"))
             }
-            let t0 = Date()
             do {
                 // The one and only call site for segmentation — identical to pipeline-cli's
-                // `--handremover` path, so GUI output can never drift from CLI output.
-                let r = try HandRemover.segment(from: cg, params: params)
-                let ms = Date().timeIntervalSince(t0) * 1000
+                // path, so GUI output can never drift from CLI output.
+                let out = try Segmentation.run(cg, strategy: strategy, params: params)
                 return .success(ProcessOutcome(
                     input: cg,
-                    cutout: r.image,
+                    cutout: out.image,
                     inSize: CGSize(width: cg.width, height: cg.height),
-                    outSize: CGSize(width: r.image.width, height: r.image.height),
-                    ms: ms
+                    outSize: CGSize(width: out.image.width, height: out.image.height),
+                    ms: out.milliseconds
                 ))
             } catch {
                 return .failure(ProcessFailure(message: String(describing: error)))

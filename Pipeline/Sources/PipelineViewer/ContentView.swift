@@ -26,6 +26,20 @@ struct ContentView: View {
                 }
                 .disabled(model.items.isEmpty || model.isBatchProcessing)
             }
+            ToolbarItem {
+                Toggle("Compare", isOn: $model.compareMode)
+                    .disabled(model.items.isEmpty)
+            }
+        }
+        .onChange(of: model.compareMode) { _, newValue in
+            if newValue {
+                Task { await model.runComparison() }
+            }
+        }
+        .onChange(of: model.selectedID) { _, _ in
+            if model.compareMode {
+                Task { await model.runComparison() }
+            }
         }
     }
 
@@ -87,7 +101,17 @@ struct ContentView: View {
         if let item = model.selected {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text(item.url.lastPathComponent).font(.title3.bold())
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(item.url.lastPathComponent).font(.title3.bold())
+                        Text(model.strategy.displayName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if model.compareMode {
+                        CompareView()
+                        Divider()
+                    }
 
                     HStack(alignment: .top, spacing: 20) {
                         labeledPane("Input", image: item.inputImage, checkerboard: false, size: item.inputSize)
