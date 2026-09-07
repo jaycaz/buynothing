@@ -1,13 +1,45 @@
-# BuyNothing — Toss & Whisper Prototype
+# BuyNothing — Prototype
 
 ## Vision
-A communal commons where things flow between neighbors naturally.
-No marketplace, no pricing, no grid. Just toss things in, whisper what you need,
-and let gentle nudges connect the dots.
+An AI-assisted tool for community engagement, starting with making bartering and
+free-sharing effortless. Catalog what you'd give away with near-zero friction;
+connections and trade suggestions surface on their own. AI is an invisible helper,
+not the point of the product. See `GOAL.md` for the full statement.
 
 ---
 
-## Cutout / Hand-Removal — Next Steps (added 2026-07-26, updated 2026-08-30)
+## PipelineViewer — Live Review/Tuning Tool (added 2026-09-06)
+
+Added a SwiftUI Mac app (`Pipeline/Sources/PipelineViewer`, new `PipelineViewer` product
+in `Pipeline/Package.swift`) for interactively reviewing HandRemover output against real
+test photos and tuning `HandRemover.Params` live via sliders. Opens as an Xcode scheme
+automatically when `Pipeline/Package.swift` (or a workspace containing it) is open in
+Xcode — select "PipelineViewer", run on My Mac. "Choose Folder…" points it at any folder
+of test images; it processes all of them and lets you drill into one, adjust params, and
+watch the cutout reprocess (debounced ~150ms). It calls the exact same
+`HandRemover.segment(from:params:)` entry point `pipeline-cli --handremover` uses — no
+separate reimplementation, so GUI and CLI output can't drift apart by construction.
+
+Structured so future pipeline steps (delighting/relighting, shadow removal, perspective
+correction) can each get their own section in `ParamsPanel.swift` alongside Hand &
+Distraction Removal, once those stages exist in `CollagePipeline`.
+
+### First pass over `~/Downloads/test-images/` (36 photos, default params)
+Ran all 36 through `pipeline-cli --handremover` as a smoke test before building the GUI.
+All loaded and processed without errors, including AVIF/WEBP inputs (native ImageIO
+support, no format-conversion step needed). Two real segmentation failures spotted by eye:
+- **`00A0A_1xoZOBOCrlq...jpg`** (coral-pink dresser on a rug): cutout kept only a thin
+  sliver of the frame — the dresser's coral color reads as skin tone, so almost the
+  whole object got classified as skin and removed. Worth a test case: HandRemover's
+  skin heuristic is a false-positive risk on warm/pink furniture, not just actual skin.
+- **`leatherman-bond-opening.avif`** (hand opening a multitool): hand mostly removed, but
+  the tool itself came out fragmented with jagged bites taken out of the metal/plastic
+  edges rather than a clean silhouette — a rougher, more mixed result than most others in
+  the set (most non-hand photos kept 50-95% of frame area with a clean silhouette).
+
+Next: use PipelineViewer to tune params against these two cases specifically (skin
+threshold looks like the lever for the dresser; texture/morphology params for the
+leatherman fragmentation) without regressing the clean cases.
 
 Context: `composite` / `composite_swift` strategies won the 50-photo benchmark (Swift port in
 `wt/composite-swift`, benchmark harness in `wt/tool-segmentation`, results in iCloud
@@ -165,34 +197,39 @@ open Build/Products/.../BuyNothing.app
 
 ---
 
-## Phase 1: Toss & Whisper Loop (Current Focus)
+## Phase 1: Toss & Whisper Loop (split 2026-09-06 — see `.meeting/DECISIONS.md`)
 
-### Data Models
-- [ ] `TossedItem` — photo, AI-generated description, tags, category, date
-- [ ] `Wish` — natural language want, parsed keywords
+**Decision (2026-09-06):** split Toss from Whisper. Whisper needs more design work and is
+shelved for now — not being worked on. Toss is treated as effectively already in flight: it's
+the same work as the image-capture → dashboard-placement pipeline (HandRemover + Pipeline), and
+the under-10-second target lines up with that existing effort. Nudge is blocked on Whisper
+(needs both sides of the match), so it's on hold too. Priority right now is the new 50-photo
+dataset + repo hygiene, not new Phase 1 code — see `.meeting/STATUS.md`.
+
+### Toss (folded into the image pipeline — not a separate build)
+- [x] Camera capture → segment (HandRemover) → collage placement — this *is* Toss, already shipped
+      as the one-shot capture flow (see "HandRemover production integration" above)
+- [ ] **Placed-item detail view** — once an item lands on the dashboard, what does it look like?
+      Does it need a title/description, or is the photo alone enough? (next concrete design step)
+- [ ] **HCI question: labeling better than Craigslist** — explore voice input where you speak
+      about the item and an LLM formats it into a clean listing (title, description, tags),
+      instead of typing. Open design thread from 2026-09-06 meeting, not started.
+- [ ] `TossedItem` data model — photo, AI-generated description, tags, category, date
+
+### Whisper (shelved — needs more design before resuming)
+- [ ] Simple text input — "I could use a bookshelf"
+- [ ] Store locally as a `Wish` — natural language want, parsed keywords
+- [ ] No categories, no filters, just natural language
+- Open question carried over: how casual should this be — voice too, or just text?
+
+### Nudge (blocked on Whisper)
 - [ ] `Neighbor` — mock person with inventory and wishes
 - [ ] `Nudge` — a match connecting a toss to a wish with a warm message
-
-### Toss (Camera → AI → Confirm → Done)
-- [ ] Camera capture screen (photo library fallback for simulator)
-- [ ] Send photo to Claude vision API for item identification
-- [ ] Show confirmation card with detected name, description, tags
-- [ ] User confirms or tweaks, item enters the commons
-- [ ] Target: under 10 seconds from camera to listed
-
-### Whisper (Say What You Need)
-- [ ] Simple text input — "I could use a bookshelf"
-- [ ] Store locally as a Wish
-- [ ] No categories, no filters, just natural language
-
-### Nudge (Gentle Matches)
 - [ ] Match engine: compare user's tosses/wishes against neighbor data
 - [ ] Generate warm, contextual nudge messages (not "1 match found")
 - [ ] Display as a feed of human-readable suggestions
 - [ ] Example: "Priya nearby has a bread maker she's not using. She mentioned wanting yoga gear — you just tossed in a yoga mat."
-
-### Mock Neighbor Data
-- [ ] Seed 4-5 fictional neighbors with realistic inventories and wants:
+- [ ] Mock neighbor data (seed 4-5 fictional neighbors), once this is picked back up:
   - Maria: has standing desk lamp, wants kids' books
   - James: has HDMI/USB cables, wants small kitchen appliances
   - Priya: has bread maker, wants yoga gear
