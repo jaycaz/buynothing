@@ -87,7 +87,12 @@ struct ContentView: View {
         if let item = model.selected {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text(item.url.lastPathComponent).font(.title3.bold())
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(item.url.lastPathComponent).font(.title3.bold())
+                        Text(model.strategy.displayName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
 
                     HStack(alignment: .top, spacing: 20) {
                         labeledPane("Input", image: item.inputImage, checkerboard: false, size: item.inputSize)

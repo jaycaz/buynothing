@@ -1,7 +1,7 @@
 import SwiftUI
 import CollagePipeline
 
-/// Live-tunable knobs for one pipeline step. Today that's only Hand & Distraction Removal;
+/// Live-tunable knobs for one pipeline step. Today that's only Segmentation;
 /// future steps (delighting, relighting, shadow removal, perspective correction) get their
 /// own section here as they're added to CollagePipeline.
 struct ParamsPanel: View {
@@ -9,27 +9,50 @@ struct ParamsPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Hand & Distraction Removal").font(.headline)
-                Spacer()
-                Button("Reset to Defaults") { model.resetParams() }
-                    .font(.caption)
-            }
+            // Section: Segmentation — sibling sections for future stages attach here.
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Segmentation").font(.headline)
+                    Spacer()
+                    Button("Reset to Defaults") { model.resetParams() }
+                        .font(.caption)
+                }
 
-            floatSlider("Skin R−B gap", $model.params.skinRBGap, 0...0.6)
-            floatSlider("Skin value min", $model.params.skinValMin, 0...1)
-            floatSlider("Skin saturation max", $model.params.skinSatMax, 0...1)
-            floatSlider("Blue saturation min", $model.params.blueSatMin, 0...1)
-            floatSlider("Blue B min", $model.params.blueBMin, 0...1)
-            floatSlider("Red saturation min", $model.params.redSatMin, 0...1)
-            floatSlider("Red R−B gap", $model.params.redRGBap, 0...0.6)
-            intSlider("Texture radius (px)", $model.params.textureRadius, 1...80)
-            floatSlider("Texture threshold", $model.params.textureThreshold, 0...50)
-            intSlider("Closing iterations", $model.params.closingIterations, 0...10)
-            intSlider("Opening iterations", $model.params.openingIterations, 0...10)
-            intSlider("Min component (px)", $model.params.minComponentPixels, 0...5000)
-            intSlider("Rescue min component (px)", $model.params.rescueMinComponentPixels, 0...2000)
-            floatSlider("Min fill ratio", $model.params.minFillRatio, 0...1)
+                Picker("Strategy", selection: $model.strategy) {
+                    ForEach(SegmentationStrategy.allCases, id: \.self) { strategy in
+                        Text(strategy.displayName).tag(strategy)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: model.strategy) { _, _ in model.scheduleReprocessSelected() }
+
+                Text(strategyCaption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                floatSlider("Skin sensitivity", $model.params.skinRBGap, 0...0.6)
+                floatSlider("Skin brightness floor", $model.params.skinValMin, 0...1)
+                intSlider("Feather edges", $model.params.featherRadius, 0...1)
+                intSlider("Drop specks below (px)", $model.params.minComponentPixels, 0...5000)
+
+                Toggle("Fill holes", isOn: $model.params.fillHoles)
+                    .font(.caption)
+                    .onChange(of: model.params.fillHoles) { _, _ in model.scheduleReprocessSelected() }
+            }
+        }
+    }
+
+    /// Which of the five knobs the selected strategy actually honours.
+    private var strategyCaption: String {
+        switch model.strategy {
+        case .raw:
+            return "Raw honours none of the parameters below."
+        case .vision:
+            return "Vision honours none of the parameters below."
+        case .handRemover:
+            return "Hand Remover honours skin sensitivity, skin brightness floor and the speck threshold."
+        case .visionMinusSkin:
+            return "Vision − Skin honours all five parameters."
         }
     }
 
