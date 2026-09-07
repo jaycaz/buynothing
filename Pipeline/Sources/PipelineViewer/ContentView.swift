@@ -26,6 +26,20 @@ struct ContentView: View {
                 }
                 .disabled(model.items.isEmpty || model.isBatchProcessing)
             }
+            ToolbarItem {
+                Toggle("Compare", isOn: $model.compareMode)
+                    .disabled(model.items.isEmpty)
+            }
+        }
+        .onChange(of: model.compareMode) { _, newValue in
+            if newValue {
+                Task { await model.runComparison() }
+            }
+        }
+        .onChange(of: model.selectedID) { _, _ in
+            if model.compareMode {
+                Task { await model.runComparison() }
+            }
         }
     }
 
@@ -92,6 +106,11 @@ struct ContentView: View {
                         Text(model.strategy.displayName)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+
+                    if model.compareMode {
+                        CompareView()
+                        Divider()
                     }
 
                     HStack(alignment: .top, spacing: 20) {
