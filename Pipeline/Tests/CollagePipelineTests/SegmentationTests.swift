@@ -13,12 +13,13 @@ struct SegmentationTests {
         return CGImageSourceCreateImageAtIndex(source, 0, nil)!
     }
 
-    @Test("allCases has exactly raw, vision, handRemover")
+    @Test("allCases has raw, vision, handRemover, visionMinusSkin")
     func strategyCases() {
-        #expect(SegmentationStrategy.allCases.count == 3)
+        #expect(SegmentationStrategy.allCases.count == 4)
         #expect(SegmentationStrategy.allCases.contains(.raw))
         #expect(SegmentationStrategy.allCases.contains(.vision))
         #expect(SegmentationStrategy.allCases.contains(.handRemover))
+        #expect(SegmentationStrategy.allCases.contains(.visionMinusSkin))
     }
 
     @Test("every strategy has a non-empty displayName")

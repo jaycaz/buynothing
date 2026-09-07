@@ -182,7 +182,7 @@ public enum HandRemover {
     /// every consumer (cropToMask, makeMaskImage, compositeWithAlpha) assumed top-down,
     /// which flipped the final cutout and made off-center crops grab an empty region
     /// (e.g. tools_05 came out fully transparent).
-    private static func topDownRGBA(from cgImage: CGImage) -> [UInt8]? {
+    internal static func topDownRGBA(from cgImage: CGImage) -> [UInt8]? {
         let w = cgImage.width
         let h = cgImage.height
         guard w > 0, h > 0 else { return nil }
@@ -205,7 +205,7 @@ public enum HandRemover {
     /// `ForegroundSegmenter.compositeMasked`) interprets RGB masks faithfully; a raw
     /// single-channel gray mask comes out faded, so we match the exact format of the
     /// Vision subject-lift mask (DeviceRGB, 32bpp, noneSkipLast).
-    private static func makeMaskImage(mask: [UInt8], width: Int, height: Int) -> CGImage? {
+    internal static func makeMaskImage(mask: [UInt8], width: Int, height: Int) -> CGImage? {
         guard mask.count == width * height else { return nil }
         // A CGImage built from a raw buffer has buffer row 0 = TOP of the image (verified
         // empirically with a two-row red/blue probe), so the top-down mask array copies
