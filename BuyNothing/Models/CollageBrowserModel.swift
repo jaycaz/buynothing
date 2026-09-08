@@ -15,6 +15,14 @@ struct CollageBrowserItem: Identifiable {
     }
 }
 
+/// Debug preview of the most recent user capture in a mode that reports removed
+/// pixels: the raw photo with the removed pixels tinted red, plus the final cutout.
+/// Shown in the debug sheet.
+struct CaptureDebugInfo {
+    let annotatedPhoto: CGImage
+    let cutout: CGImage
+}
+
 /// The two packing algorithms the debug panel can switch between.
 enum CollagePackingAlgorithm: String, CaseIterable, Identifiable {
     case justifiedRows
@@ -45,6 +53,8 @@ final class CollageBrowserModel: ObservableObject {
     @Published private(set) var isLoadingPage = false
 
     @Published var segmentationMode: CollageSegmentationMode = .visionCutout
+    /// Most recent user-capture debug preview (photo with removed pixels tinted red + cutout).
+    @Published private(set) var lastCaptureDebug: CaptureDebugInfo?
     @Published var packingAlgorithm: CollagePackingAlgorithm = .justifiedRows {
         didSet { repack() }
     }
@@ -103,14 +113,23 @@ final class CollageBrowserModel: ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             var processed: CGImage? = cgImage
+            var removedMask: CGImage?
             if mode.segmentFlag, #available(iOS 17.0, *) {
                 do {
-                    processed = try segmentObject(cgImage, mode: mode)
+                    let detailed = try segmentObjectDetailed(cgImage, mode: mode)
+                    processed = detailed.image
+                    removedMask = detailed.removedMask
                 } catch {
                     processed = nil
                 }
             }
             guard let processed else { return }
+            // Debug preview: tint the removed pixels red on the raw captured photo.
+            if let removedMask,
+               let tinted = HandMaskOverlay.redTint(mask: removedMask),
+               let annotated = HandMaskOverlay.composite(under: cgImage, over: tinted) {
+                self.lastCaptureDebug = CaptureDebugInfo(annotatedPhoto: annotated, cutout: processed)
+            }
             let insertAt = Self.insertionIndex(
                 nearestToY: self.viewportCenterY, placements: self.layout.placements, itemCount: self.items.count
             )

@@ -19,6 +19,7 @@
 		AA0004001A000001001A0001 /* SimilarImageSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0004001A000001001A0002 /* SimilarImageSearch.swift */; };
 		AA0005001A000001001A0001 /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0005001A000001001A0002 /* Secrets.swift */; };
 		AA0007001A000001001A0001 /* CapturedPhotoNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0007001A000001001A0002 /* CapturedPhotoNormalizer.swift */; };
+		AA0008001A000001001A0001 /* HandMaskOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0008001A000001001A0002 /* HandMaskOverlay.swift */; };
 		B40001001A000001001A0001 /* BuyNothingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40000FF1A000001001A0001 /* BuyNothingApp.swift */; };
 		B40001021A000001001A0001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40001011A000001001A0001 /* ContentView.swift */; };
 		B40001041A000001001A0001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B40001031A000001001A0001 /* Assets.xcassets */; };
@@ -63,6 +64,7 @@
 		AA0005001A000001001A0002 /* Secrets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Secrets.swift; sourceTree = "<group>"; };
 		AA0006001A000001001A0002 /* Secrets.example.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Secrets.example.swift; sourceTree = "<group>"; };
 		AA0007001A000001001A0002 /* CapturedPhotoNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapturedPhotoNormalizer.swift; sourceTree = "<group>"; };
+		AA0008001A000001001A0002 /* HandMaskOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandMaskOverlay.swift; sourceTree = "<group>"; };
 		B40000FC1A000001001A0001 /* BuyNothing.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BuyNothing.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B40000FF1A000001001A0001 /* BuyNothingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuyNothingApp.swift; sourceTree = "<group>"; };
 		B40001011A000001001A0001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -210,6 +212,7 @@
 				CFE3F4F9C44D7E40CC7E4993 /* DebugGroundTruthSegmenter.swift */,
 				AA0003001A000001001A0002 /* ItemIdentifier.swift */,
 				AA0004001A000001001A0002 /* SimilarImageSearch.swift */,
+			AA0008001A000001001A0002 /* HandMaskOverlay.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -348,6 +351,7 @@
 				AA0004001A000001001A0001 /* SimilarImageSearch.swift in Sources */,
 				AA0005001A000001001A0001 /* Secrets.swift in Sources */,
 				AA0007001A000001001A0001 /* CapturedPhotoNormalizer.swift in Sources */,
+				AA0008001A000001001A0001 /* HandMaskOverlay.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

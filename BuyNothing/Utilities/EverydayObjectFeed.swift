@@ -1,7 +1,7 @@
 import Foundation
 import CoreGraphics
 
-/// The two segmentation behaviors the debug panel can switch between.
+/// The segmentation behaviors the debug panel can switch between.
 /// `.raw` does not add a second Vision-based algorithm -- it reuses the
 /// `segment: Bool` parameter `SimilarImageSearch` already has, which skips
 /// `ForegroundSegmenter` entirely and keeps the full rectangular photo.
@@ -11,13 +11,18 @@ enum CollageSegmentationMode: String, CaseIterable, Identifiable {
     /// classification that strips confidently skin-toned pixels, so held items come out
     /// without the gripping hand. Falls back to a plain Vision cutout if no subject.
     case handRemoval
+    /// Vision subject mask minus confident-skin pixels (no colour/texture gate) — the
+    /// middle ground between `.visionCutout` (keeps the hand) and `.handRemoval`
+    /// (whose blue/red gate mangles general objects). Mirrors CollagePipeline's
+    /// `Segmentation.run(.visionMinusSkin)`.
+    case visionMinusSkin
     case raw
 
     var id: String { rawValue }
 
     var segmentFlag: Bool {
         switch self {
-        case .visionCutout, .handRemoval: return true
+        case .visionCutout, .handRemoval, .visionMinusSkin: return true
         case .raw: return false
         }
     }
@@ -26,6 +31,7 @@ enum CollageSegmentationMode: String, CaseIterable, Identifiable {
         switch self {
         case .visionCutout: return "Vision Cutout"
         case .handRemoval: return "Hand Removal (Composite)"
+        case .visionMinusSkin: return "Vision − Skin"
         case .raw: return "Raw (No Segmentation)"
         }
     }

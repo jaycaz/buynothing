@@ -19,6 +19,32 @@ struct CollageDebugConfigView: View {
                         .foregroundStyle(.secondary)
                 }
 
+                Section("Last captured item (debug)") {
+                    if let debug = model.lastCaptureDebug {
+                        VStack(spacing: 8) {
+                            Image(decorative: debug.annotatedPhoto, scale: 1)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            Text("Red = pixels the strategy removed.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Image(decorative: debug.cutout, scale: 1)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            Text("Final cutout.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    } else {
+                        Text("Capture a held object in Vision − Skin mode to preview the removed pixels.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 Section("Packing") {
                     Picker("Algorithm", selection: $model.packingAlgorithm) {
                         ForEach(CollagePackingAlgorithm.allCases) { algorithm in

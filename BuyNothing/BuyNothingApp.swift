@@ -105,8 +105,14 @@ enum CollageDebugDump {
         let segmentationEnabled = env["COLLAGE_SNAPSHOT_SKIP_SEGMENTATION"] != "1"
         // Segmentation mode mirrors the production one-shot capture: `addPhoto` uses the
         // composite hand-removal strategy (Vision fallback). Override with
-        // COLLAGE_SNAPSHOT_MODE=visioncutout to exercise the plain Vision path.
-        let segMode: CollageSegmentationMode = env["COLLAGE_SNAPSHOT_MODE"] == "visioncutout" ? .visionCutout : .handRemoval
+        // COLLAGE_SNAPSHOT_MODE=visioncutout (plain Vision path) or
+        // COLLAGE_SNAPSHOT_MODE=visionminusskin (Vision mask minus confident skin).
+        let segMode: CollageSegmentationMode
+        switch env["COLLAGE_SNAPSHOT_MODE"] {
+        case "visioncutout": segMode = .visionCutout
+        case "visionminusskin": segMode = .visionMinusSkin
+        default: segMode = .handRemoval
+        }
         var aligned = cgImage
         if segmentationEnabled {
             guard #available(iOS 17.0, *) else {

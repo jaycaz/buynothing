@@ -542,6 +542,82 @@ enum HandRemover {
         }
         return out
     }
+
+    // MARK: - visionMinusSkin (mirrors CollagePipeline.Segmentation.run(.visionMinusSkin))
+
+    /// Vision subject mask minus confident-skin pixels — deliberately NO blue/red
+    /// colour gate and NO texture requirement (that gate is exactly what destroys
+    /// general objects in `segment`). A bare hand is still dropped because
+    /// confident-skin pixels are excluded.
+    ///
+    /// Returns the tight-cropped cutout, an alpha mask matching the cutout, and the
+    /// full-frame mask of the pixels this strategy removed (confident skin inside the
+    /// Vision region) for the debug “removed pixels” overlay.
+    @available(iOS 17.0, *)
+    static func segmentVisionMinusSkin(_ cgImage: CGImage) throws -> (cutout: CGImage, cutoutMask: CGImage, removedMask: CGImage) {
+        let w = cgImage.width
+        let h = cgImage.height
+
+        // 1) region prior from Vision
+        let region = try ForegroundSegmenter.segment(from: cgImage).fullMask
+        guard let regionBytes = ImageGeometry.topDownGrayscaleBytes(from: region),
+              regionBytes.count == w * h else {
+            throw HandRemoverError.pixelAccessFailed
+        }
+
+        // 2) per-pixel: inside the Vision region AND not confidently skin-toned.
+        //    No colour gate, no texture test.
+        guard let rgba = topDownRGBA(from: cgImage) else {
+            throw HandRemoverError.pixelAccessFailed
+        }
+        let n = w * h
+        var keep = [Bool](repeating: false, count: n)
+        var removed = [UInt8](repeating: 0, count: n)
+        for i in 0..<n {
+            guard regionBytes[i] > 127 else { continue }
+            let r = Float(rgba[4 * i]) / 255
+            let g = Float(rgba[4 * i + 1]) / 255
+            let b = Float(rgba[4 * i + 2]) / 255
+            if isConfidentSkin(r: r, g: g, b: b) {
+                removed[i] = regionBytes[i]
+            } else {
+                keep[i] = true
+            }
+        }
+
+        // 3) cleanup + feather (shipped defaults, same as the pipeline package)
+        var cleaned = removeSmallComponents(keep, width: w, height: h, minSize: 1000, minFillRatio: 0.10)
+        cleaned = fillHoles(cleaned, width: w, height: h)
+        var alpha = [UInt8](repeating: 0, count: n)
+        for i in 0..<n { alpha[i] = cleaned[i] ? 255 : 0 }
+        alpha = gaussianBlur1(alpha, width: w, height: h)
+
+        // 4) mask + composite + tight crop
+        guard let mask = makeMaskImage(mask: alpha, width: w, height: h) else {
+            throw HandRemoverError.maskRenderFailed
+        }
+        guard let composited = compositeWithAlpha(rgba: rgba, alpha: alpha, width: w, height: h) else {
+            throw HandRemoverError.maskRenderFailed
+        }
+        guard let rect = boundingBoxRect(alpha: alpha, width: w, height: h),
+              let cropped = composited.cropping(to: rect),
+              let cutoutMask = mask.cropping(to: rect),
+              let removedImage = makeMaskImage(mask: removed, width: w, height: h) else {
+            throw HandRemoverError.maskRenderFailed
+        }
+        return (cropped, cutoutMask, removedImage)
+    }
+
+    /// Confident-skin test (same expression as CollagePipeline's
+    /// `Segmentation.isConfidentSkin` with the shipped defaults: `skinRBGap` 0.18,
+    /// `skinValMin` 0.25). Saturation is capped so highly saturated product reds
+    /// (handles, packaging) do not read as skin.
+    private static func isConfidentSkin(r: Float, g: Float, b: Float) -> Bool {
+        let mx = max(r, max(g, b))
+        let mn = min(r, min(g, b))
+        let sat = mx > 0 ? (mx - mn) / mx : 0
+        return (r - b > 0.18) && r > g && mx > 0.25 && sat < 0.75
+    }
 }
 
 /// One-stop segmentation for the app's production paths: applies the selected
@@ -566,6 +642,35 @@ func segmentObject(_ cgImage: CGImage, mode: CollageSegmentationMode) throws -> 
         }
     }
 
+    if mode == .visionMinusSkin {
+        do {
+            let result = try HandRemover.segmentVisionMinusSkin(cgImage)
+            let cutout = ForegroundSegmenter.Cutout(image: result.cutout, alphaMask: result.cutoutMask)
+            return ObjectOrientationAligner.align(cutout)
+        } catch {
+            // No usable subject — fall through to plain Vision.
+        }
+    }
+
     let cutout = try ForegroundSegmenter.cutoutForegroundObject(from: cgImage)
     return ObjectOrientationAligner.align(cutout)
+}
+
+/// `segmentObject` plus the removed-pixel mask when the mode reports one (today:
+/// `.visionMinusSkin`), for the debug sheet's “what did the strategy remove” preview.
+@available(iOS 17.0, *)
+func segmentObjectDetailed(_ cgImage: CGImage, mode: CollageSegmentationMode) throws -> (image: CGImage, removedMask: CGImage?) {
+    guard mode.segmentFlag else { return (cgImage, nil) }
+    if mode == .visionMinusSkin {
+        do {
+            let result = try HandRemover.segmentVisionMinusSkin(cgImage)
+            let cutout = ForegroundSegmenter.Cutout(image: result.cutout, alphaMask: result.cutoutMask)
+            return (ObjectOrientationAligner.align(cutout), result.removedMask)
+        } catch {
+            // No usable subject — fall through to plain Vision (no removed mask).
+            let cutout = try ForegroundSegmenter.cutoutForegroundObject(from: cgImage)
+            return (ObjectOrientationAligner.align(cutout), nil)
+        }
+    }
+    return (try segmentObject(cgImage, mode: mode), nil)
 }
